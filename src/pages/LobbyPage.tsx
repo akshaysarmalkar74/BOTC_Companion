@@ -9,6 +9,7 @@ export function LobbyPage() {
   const [room, setRoom] = useState<Room | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [onlineIds, setOnlineIds] = useState<Set<string>>(new Set());
+  const [scriptCount, setScriptCount] = useState<number | null>(null);
   const [kicked, setKicked] = useState(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -35,7 +36,11 @@ export function LobbyPage() {
           .order('seat_order'),
       ]);
 
-      if (roomData) setRoom(roomData as Room);
+      if (roomData) {
+        setRoom(roomData as Room);
+        const script = (roomData as Room).script;
+        setScriptCount(Array.isArray(script) ? script.length : 0);
+      }
       if (playerData) setPlayers(playerData as Player[]);
       setLoading(false);
     }
@@ -191,6 +196,26 @@ export function LobbyPage() {
           {isHost && <span className="host-badge">Storyteller</span>}
         </div>
       </header>
+
+      {/* ── Nav bar ── */}
+      <nav className="lobby-nav">
+        <button
+          className="lobby-nav-btn"
+          onClick={() => navigate('/characters')}
+        >
+          Character Reference
+        </button>
+        {isHost && (
+          <button
+            className="lobby-nav-btn lobby-nav-btn--accent"
+            onClick={() => navigate('/script')}
+          >
+            {scriptCount === null || scriptCount === 0
+              ? 'Build Script'
+              : `Script · ${scriptCount} characters`}
+          </button>
+        )}
+      </nav>
 
       {/* ── Circular seating ── */}
       <div className="lobby-circle-area">

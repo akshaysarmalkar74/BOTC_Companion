@@ -13,6 +13,16 @@
   --offline: #3a3a5a;
   --radius: 8px;
   --radius-sm: 4px;
+
+  /* Team colours */
+  --team-townsfolk: #4a8fc7;
+  --team-outsider:  #5aaa8a;
+  --team-minion:    #c47a3a;
+  --team-demon:     #c43a3a;
+  --team-townsfolk-dim: rgba(74, 143, 199, 0.10);
+  --team-outsider-dim:  rgba(90, 170, 138, 0.10);
+  --team-minion-dim:    rgba(196, 122, 58, 0.10);
+  --team-demon-dim:     rgba(196, 58, 58, 0.10);
 }
 
 *,
@@ -512,6 +522,414 @@ body {
   color: var(--accent);
   letter-spacing: 0.5px;
   text-transform: uppercase;
+}
+
+/* ── Lobby nav bar (Phase 2) ───────────────────────────── */
+
+.lobby-nav {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.lobby-nav-btn {
+  flex: 1;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  text-align: center;
+}
+
+.lobby-nav-btn:hover {
+  border-color: var(--muted);
+  color: var(--text);
+}
+
+.lobby-nav-btn--accent {
+  color: var(--accent);
+  border-color: rgba(196, 164, 90, 0.3);
+}
+
+.lobby-nav-btn--accent:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* ── Character card ────────────────────────────────────── */
+
+.character-card {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: flex;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.character-card.is-interactive {
+  cursor: pointer;
+}
+
+.character-card.is-interactive:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.character-card.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.character-card.is-disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+
+/* Left-edge colour bar keyed to team */
+.card-team-bar {
+  width: 3px;
+  flex-shrink: 0;
+}
+
+.team-townsfolk .card-team-bar { background: var(--team-townsfolk); }
+.team-outsider  .card-team-bar { background: var(--team-outsider); }
+.team-minion    .card-team-bar { background: var(--team-minion); }
+.team-demon     .card-team-bar { background: var(--team-demon); }
+
+.character-card.is-selected.team-townsfolk { border-color: var(--team-townsfolk); background: var(--team-townsfolk-dim); }
+.character-card.is-selected.team-outsider  { border-color: var(--team-outsider);  background: var(--team-outsider-dim); }
+.character-card.is-selected.team-minion    { border-color: var(--team-minion);    background: var(--team-minion-dim); }
+.character-card.is-selected.team-demon     { border-color: var(--team-demon);     background: var(--team-demon-dim); }
+
+.card-body {
+  padding: 11px 13px 11px 11px;
+  flex: 1;
+  min-width: 0;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.card-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-team-badge {
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.team-badge-townsfolk { background: rgba(74, 143, 199, 0.18); color: var(--team-townsfolk); }
+.team-badge-outsider  { background: rgba(90, 170, 138, 0.18); color: var(--team-outsider); }
+.team-badge-minion    { background: rgba(196, 122, 58, 0.18); color: var(--team-minion); }
+.team-badge-demon     { background: rgba(196, 58, 58, 0.18);  color: var(--team-demon); }
+
+.card-ability {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+/* Checkmark overlay when selected */
+.card-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #0d0d14;
+  font-size: 0.625rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.team-townsfolk .card-check { background: var(--team-townsfolk); }
+.team-outsider  .card-check { background: var(--team-outsider); }
+.team-minion    .card-check { background: var(--team-minion); }
+.team-demon     .card-check { background: var(--team-demon); }
+
+/* ── Character grid ────────────────────────────────────── */
+
+.character-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+}
+
+/* ── Filter tabs (shared between reference + builder) ──── */
+
+.filter-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.filter-tab:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+
+.filter-tab.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.filter-tab-count {
+  font-size: 0.6875rem;
+  opacity: 0.6;
+}
+
+/* ── Character reference page ──────────────────────────── */
+
+.ref-page {
+  padding: 24px 16px 40px;
+}
+
+.ref-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.ref-header {
+  margin-bottom: 20px;
+}
+
+.ref-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.ref-subtitle {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.ref-card-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.ref-description {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  line-height: 1.5;
+  padding: 8px 14px 10px 17px;
+  border-left: 3px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: rgba(0, 0, 0, 0.15);
+  margin-top: -1px;
+}
+
+/* When a ref-card-wrapper has a ref-description, round the card top only */
+.ref-card-wrapper .character-card {
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+/* ── Script builder page ───────────────────────────────── */
+
+.script-page {
+  padding: 24px 16px 40px;
+}
+
+.script-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.script-header {
+  margin-bottom: 20px;
+}
+
+.script-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.script-title {
+  font-size: 1.375rem;
+  font-weight: 700;
+}
+
+.script-save-btn {
+  width: auto;
+  padding: 9px 20px;
+}
+
+/* ── Setup panel ───────────────────────────────────────── */
+
+.setup-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+
+.setup-warning {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.setup-player-count {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.setup-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.setup-value {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.setup-baron-note {
+  font-size: 0.75rem;
+  color: var(--team-minion);
+  background: var(--team-minion-dim);
+  border: 1px solid rgba(196, 122, 58, 0.25);
+  border-radius: 3px;
+  padding: 2px 7px;
+}
+
+.setup-quotas {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 480px) {
+  .setup-quotas {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.setup-quota {
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-high);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.setup-quota.done {
+  border-color: rgba(77, 184, 106, 0.35);
+  background: rgba(77, 184, 106, 0.06);
+}
+
+.setup-quota.over {
+  border-color: rgba(224, 85, 85, 0.35);
+  background: rgba(224, 85, 85, 0.06);
+}
+
+.quota-team {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.team-quota-townsfolk .quota-team { color: var(--team-townsfolk); }
+.team-quota-outsider  .quota-team { color: var(--team-outsider); }
+.team-quota-minion    .quota-team { color: var(--team-minion); }
+.team-quota-demon     .quota-team { color: var(--team-demon); }
+
+.quota-fraction {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.quota-pip-row {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+.quota-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.quota-pip.filled { background: var(--online); }
+.quota-pip.filled.over { background: var(--danger); }
+
+.setup-valid {
+  font-size: 0.8125rem;
+  color: var(--online);
+}
+
+.setup-invalid {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.invalid-item {
+  color: var(--danger);
 }
 
 /* ── Utility ───────────────────────────────────────────── */
