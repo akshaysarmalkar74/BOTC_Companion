@@ -186,7 +186,7 @@ export function LobbyPage() {
         </div>
         <div className="lobby-header-right">
           <span className="lobby-player-count">
-            {players.length} player{players.length !== 1 ? 's' : ''}
+            {players.filter((p) => !p.is_host).length} player{players.filter((p) => !p.is_host).length !== 1 ? 's' : ''}
           </span>
           {isHost && <span className="host-badge">Storyteller</span>}
         </div>
@@ -194,7 +194,7 @@ export function LobbyPage() {
 
       {/* ── Circular seating ── */}
       <div className="lobby-circle-area">
-        {players.length === 0 ? (
+        {players.filter((p) => !p.is_host).length === 0 ? (
           <p className="text-muted">Waiting for players to join…</p>
         ) : (
           <CircularSeating

@@ -44,6 +44,9 @@ export function CircularSeating({
   const ringSize = RADIUS_PCT * 2;
   const ringOffset = 50 - RADIUS_PCT;
 
+  // The Storyteller is not a player — exclude them from the circle.
+  const seats = players.filter((p) => !p.is_host);
+
   return (
     <div className="seating-wrapper">
       <div className="seating-circle">
@@ -58,9 +61,9 @@ export function CircularSeating({
           }}
         />
 
-        {players.map((player, i) => {
+        {seats.map((player, i) => {
           // Distribute seats evenly; start at the top (−π/2)
-          const angle = (2 * Math.PI * i) / players.length - Math.PI / 2;
+          const angle = (2 * Math.PI * i) / seats.length - Math.PI / 2;
           const x = 50 + RADIUS_PCT * Math.cos(angle);
           const y = 50 + RADIUS_PCT * Math.sin(angle);
 
@@ -83,7 +86,7 @@ export function CircularSeating({
       </div>
 
       {/* Contextual hint for the host */}
-      {isHost && players.length > 1 && (
+      {isHost && seats.length > 1 && (
         <p className="seating-hint">
           {selectedId
             ? 'Click another seat to swap — or click the same seat to cancel'
