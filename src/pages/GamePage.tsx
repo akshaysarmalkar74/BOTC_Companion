@@ -3,22 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { loadSession } from '../lib/roomUtils';
 import { RoleRevealCard } from '../components/RoleRevealCard';
+import { GrimoireCircle } from '../components/GrimoireCircle';
+import { PlayerDetailPanel } from '../components/PlayerDetailPanel';
 import { TROUBLE_BREWING } from '../data/troubleBrewing';
-import type { Player, Room, Team } from '../types';
-
-const TEAM_LABELS: Record<Team, string> = {
-  townsfolk: 'Townsfolk',
-  outsider: 'Outsider',
-  minion: 'Minion',
-  demon: 'Demon',
-};
+import type { Player, Room } from '../types';
 
 export function GamePage() {
-  const [room, setRoom] = useState<Room | null>(null);
-  const [myRole, setMyRole] = useState<string | null>(null);
-  const [allPlayers, setAllPlayers] = useState<Player[]>([]); // host only
-  const [revealed, setRevealed] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [room, setRoom]             = useState<Room | null>(null);
+  const [myRole, setMyRole]         = useState<string | null>(null);
+  const [allPlayers, setAllPlayers] = useState<Player[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [revealed, setRevealed]     = useState(false);
+  const [loading, setLoading]       = useState(true);
   const navigate = useNavigate();
 
   const session = loadSession();
@@ -34,10 +30,9 @@ export function GamePage() {
   // ── Load data ──────────────────────────────────────────────────────
   useEffect(() => {
     async function load() {
-      // Load room for code + status check
       const { data: roomData } = await supabase
         .from('rooms')
-        .select('id, code, status, script, host_id, created_at')
+        .select('id, code, status, script, host_id, phase, created_at')
         .eq('id', roomId)
         .single();
 
@@ -48,17 +43,18 @@ export function GamePage() {
       setRoom(roomData as Room);
 
       if (isHost) {
-        // Host: load all players with their roles
         const { data: players } = await supabase
           .from('players')
-          .select('id, display_name, seat_order, is_host, role, room_id, created_at')
+          .select(
+            'id, display_name, seat_order, is_host, role, is_alive, ghost_vote_used, notes, room_id, created_at'
+          )
           .eq('room_id', roomId)
           .eq('is_host', false)
           .order('seat_order');
 
         setAllPlayers((players ?? []) as Player[]);
       } else {
-        // Player: only fetch their own role — no other player's data is read
+        // Players only fetch their own role — no other player data is read
         const { data: me } = await supabase
           .from('players')
           .select('role')
@@ -74,6 +70,83 @@ export function GamePage() {
     load();
   }, [roomId, playerId, isHost]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Realtime (host only) ────────────────────────────────────────────
+  useEffect(() => {
+    if (!isHost) return;
+
+    const channel = supabase.channel(`grimoire:${roomId}`);
+
+    channel
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'players', filter: `room_id=eq.${roomId}` },
+        (payload) => {
+          const updated = payload.new as Player;
+          setAllPlayers((prev) =>
+            prev.map((p) =>
+              p.id === updated.id
+                ? {
+                    ...p,
+                    display_name:     updated.display_name,
+                    is_alive:         updated.is_alive,
+                    ghost_vote_used:  updated.ghost_vote_used,
+                    notes:            updated.notes,
+                  }
+                : p
+            )
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` },
+        (payload) => {
+          const updated = payload.new as Room;
+          setRoom((prev) => (prev ? { ...prev, phase: updated.phase } : prev));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [roomId, isHost]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Host actions ────────────────────────────────────────────────────
+
+  const handleToggleAlive = async (targetId: string) => {
+    const player = allPlayers.find((p) => p.id === targetId);
+    if (!player) return;
+    const newAlive = !player.is_alive;
+    // Optimistic update
+    setAllPlayers((prev) =>
+      prev.map((p) => (p.id === targetId ? { ...p, is_alive: newAlive } : p))
+    );
+    await supabase.from('players').update({ is_alive: newAlive }).eq('id', targetId);
+  };
+
+  const handleToggleGhostVote = async (targetId: string) => {
+    const player = allPlayers.find((p) => p.id === targetId);
+    if (!player) return;
+    const newUsed = !player.ghost_vote_used;
+    setAllPlayers((prev) =>
+      prev.map((p) => (p.id === targetId ? { ...p, ghost_vote_used: newUsed } : p))
+    );
+    await supabase.from('players').update({ ghost_vote_used: newUsed }).eq('id', targetId);
+  };
+
+  const handleNotesSave = async (targetId: string, notes: string) => {
+    setAllPlayers((prev) =>
+      prev.map((p) => (p.id === targetId ? { ...p, notes } : p))
+    );
+    await supabase.from('players').update({ notes }).eq('id', targetId);
+  };
+
+  const handlePhaseChange = async (phase: string) => {
+    setRoom((prev) => (prev ? { ...prev, phase } : prev));
+    await supabase.from('rooms').update({ phase }).eq('id', roomId);
+  };
+
   // ── Render ─────────────────────────────────────────────────────────
 
   if (loading) {
@@ -84,63 +157,47 @@ export function GamePage() {
     );
   }
 
-  // ── Host view ──────────────────────────────────────────────────────
+  // ── Host view — Storyteller Grimoire ───────────────────────────────
   if (isHost) {
+    const selectedPlayer = selectedId
+      ? (allPlayers.find((p) => p.id === selectedId) ?? null)
+      : null;
+    const selectedCharacter = selectedPlayer?.role
+      ? (TROUBLE_BREWING.find((c) => c.id === selectedPlayer.role) ?? null)
+      : null;
+
     return (
-      <div className="page game-page">
-        <div className="game-container">
-          <header className="game-header">
-            <div className="room-code-group">
-              <span className="room-code-label">Room</span>
-              <span className="room-code-value">{room?.code}</span>
-            </div>
-            <span className="game-status-badge">Game in Progress</span>
-          </header>
-
-          <h2 className="game-section-title">Player Roles</h2>
-
-          <div className="game-roles-table-wrapper">
-            <table className="game-roles-table">
-              <thead>
-                <tr>
-                  <th>Seat</th>
-                  <th>Player</th>
-                  <th>Role</th>
-                  <th>Team</th>
-                </tr>
-              </thead>
-              <tbody>
-                {allPlayers.map((player, idx) => {
-                  const char = player.role
-                    ? TROUBLE_BREWING.find((c) => c.id === player.role)
-                    : null;
-                  return (
-                    <tr key={player.id}>
-                      <td className="col-seat">{idx + 1}</td>
-                      <td className="col-player">{player.display_name}</td>
-                      <td className="col-role">
-                        {char ? (
-                          <span className="game-role-name">{char.name}</span>
-                        ) : (
-                          <span className="text-muted">—</span>
-                        )}
-                      </td>
-                      <td className="col-team">
-                        {char && (
-                          <span
-                            className={`card-team-badge team-badge-${char.team}`}
-                          >
-                            {TEAM_LABELS[char.team]}
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      <div className="grimoire-page">
+        <header className="grimoire-header">
+          <div className="room-code-group">
+            <span className="room-code-label">Room</span>
+            <span className="room-code-value">{room?.code}</span>
           </div>
+          <span className="host-badge">Storyteller</span>
+        </header>
+
+        <div className="grimoire-circle-area">
+          {room && (
+            <GrimoireCircle
+              players={allPlayers}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              room={room}
+              onPhaseChange={handlePhaseChange}
+            />
+          )}
         </div>
+
+        {selectedPlayer && (
+          <PlayerDetailPanel
+            player={selectedPlayer}
+            character={selectedCharacter}
+            onClose={() => setSelectedId(null)}
+            onToggleAlive={handleToggleAlive}
+            onToggleGhostVote={handleToggleGhostVote}
+            onNotesSave={handleNotesSave}
+          />
+        )}
       </div>
     );
   }
@@ -148,16 +205,13 @@ export function GamePage() {
   // ── Player view ────────────────────────────────────────────────────
 
   const myCharacter = myRole
-    ? TROUBLE_BREWING.find((c) => c.id === myRole) ?? null
+    ? (TROUBLE_BREWING.find((c) => c.id === myRole) ?? null)
     : null;
 
   if (revealed && myCharacter) {
     return (
       <div className="page centered reveal-page">
-        <RoleRevealCard
-          character={myCharacter}
-          onHide={() => setRevealed(false)}
-        />
+        <RoleRevealCard character={myCharacter} onHide={() => setRevealed(false)} />
       </div>
     );
   }

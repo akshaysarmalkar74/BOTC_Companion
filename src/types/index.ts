@@ -6,6 +6,7 @@ export interface Room {
   host_id: string | null;
   script: string[];      // array of character IDs — added Phase 2
   status: RoomStatus;    // game lifecycle state — added Phase 3
+  phase: string;         // e.g. "Night 1", "Day 2" — added Phase 4
   created_at: string;
 }
 
@@ -40,7 +41,10 @@ export interface Player {
   display_name: string;
   is_host: boolean;
   seat_order: number;
-  role: string | null; // character ID — assigned Phase 3, null until then
+  role: string | null;        // character ID — assigned Phase 3, null until then
+  is_alive: boolean;          // alive/dead state — Phase 4
+  ghost_vote_used: boolean;   // ghost vote consumed — Phase 4
+  notes: string;              // Storyteller-only notes — Phase 4
   created_at: string;
 }
 

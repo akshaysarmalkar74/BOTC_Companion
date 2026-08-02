@@ -1293,6 +1293,413 @@ body {
   margin-top: 4px;
 }
 
+/* ── Grimoire seat ─────────────────────────────────────── */
+
+/*
+ * .grimoire-seat mirrors .player-seat but is always interactive
+ * (the Storyteller can tap any seat to open the detail panel).
+ */
+.grimoire-seat {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  cursor: pointer;
+}
+
+.grimoire-seat:focus {
+  outline: none;
+}
+
+.grimoire-seat:focus-visible .seat-token {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.grimoire-seat:hover .seat-token {
+  border-color: rgba(196, 164, 90, 0.45);
+}
+
+.grimoire-seat.is-selected {
+  z-index: 10;
+}
+
+.grimoire-seat.is-selected .seat-token {
+  border-color: var(--accent);
+  border-width: 2px;
+  box-shadow: 0 0 0 4px rgba(196, 164, 90, 0.15), 0 0 16px rgba(196, 164, 90, 0.25);
+}
+
+/* Dead player token — dimmed, grey border */
+.grimoire-token--dead {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  opacity: 0.72;
+}
+
+/* Death cross overlaid on the token */
+.grimoire-death-cross {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -55%);
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.45);
+  pointer-events: none;
+  line-height: 1;
+  /* Push the cross above the initials */
+  z-index: 2;
+}
+
+/* When dead, dim the initials so the cross reads clearly */
+.grimoire-token--dead .seat-initials {
+  opacity: 0.25;
+}
+
+/*
+ * Ghost vote dot — small circle at the token's bottom-left.
+ * Shown only on dead players whose vote has not been used.
+ */
+.grimoire-ghost-dot {
+  position: absolute;
+  bottom: 1px;
+  left: 1px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: transparent;
+  border: 2px solid rgba(160, 160, 255, 0.7);
+  pointer-events: none;
+}
+
+/* Grimoire label — inherits .seat-label positioning via --lx / --ly */
+.grimoire-label-name.is-dead {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.grimoire-label-role {
+  font-size: 0.6875rem;
+  color: var(--muted);
+  white-space: nowrap;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  text-align: center;
+}
+
+/* ── Grimoire page layout ──────────────────────────────── */
+
+.grimoire-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.grimoire-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.grimoire-circle-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  /* Extra bottom padding so the panel never overlaps the circle */
+  padding-bottom: 20px;
+}
+
+/* Subtle tint behind the circle based on phase */
+.grimoire-night .seating-ring {
+  border-color: rgba(80, 80, 160, 0.5);
+}
+
+.grimoire-day .seating-ring {
+  border-color: rgba(196, 164, 90, 0.35);
+}
+
+/* ── Grimoire centre panel ─────────────────────────────── */
+
+/*
+ * Absolutely centred inside the seating-circle.
+ * Must stay within the inner safe zone (≈ 60% of container diameter).
+ * Reserved for Night Assistant controls in a later phase.
+ */
+.grimoire-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  z-index: 0;
+  pointer-events: none;
+  width: 54%;
+}
+
+.grimoire-center > * {
+  pointer-events: auto;
+}
+
+.grimoire-center-code {
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.grimoire-center-count {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.grimoire-phase-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.grimoire-phase-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: var(--radius-sm);
+  width: 24px;
+  height: 24px;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.grimoire-phase-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.grimoire-phase-text {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 64px;
+  text-align: center;
+}
+
+.grimoire-phase-text.phase-night {
+  color: #9090d8;
+}
+
+.grimoire-phase-text.phase-day {
+  color: var(--accent);
+}
+
+/* ── Player detail panel ───────────────────────────────── */
+
+/* Semi-transparent backdrop; closes the panel on click */
+.panel-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 200;
+}
+
+/* Bottom-sheet panel */
+.player-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 201;
+  background: var(--surface-high);
+  border-top: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+  padding: 20px;
+  max-height: 65vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panel-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.panel-player-name {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.panel-character-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.panel-character-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.panel-no-role {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.panel-close-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: var(--radius-sm);
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.panel-close-btn:hover {
+  border-color: var(--text);
+  color: var(--text);
+}
+
+/* Character ability text */
+.panel-ability {
+  font-size: 0.875rem;
+  color: var(--muted);
+  font-style: italic;
+  line-height: 1.55;
+  border-left: 3px solid var(--border);
+  padding-left: 12px;
+}
+
+/* Status controls row */
+.panel-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.panel-control-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.panel-control-label {
+  font-size: 0.875rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.panel-toggle-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 6px 14px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.panel-toggle-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Dead / kill action — danger tint */
+.panel-toggle-btn--danger {
+  border-color: rgba(224, 85, 85, 0.5);
+  color: var(--danger);
+}
+
+.panel-toggle-btn--danger:hover {
+  border-color: var(--danger);
+  background: rgba(224, 85, 85, 0.08);
+  color: var(--danger);
+}
+
+/* Ghost vote used — muted */
+.panel-toggle-btn--muted {
+  color: var(--muted);
+  border-color: var(--border);
+}
+
+/* Notes section */
+.panel-notes-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.panel-notes-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.panel-notes-input {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  padding: 8px 10px;
+  resize: vertical;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+
+.panel-notes-input::placeholder {
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+.panel-notes-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 /* ── Utility ───────────────────────────────────────────── */
 
 .text-muted {
