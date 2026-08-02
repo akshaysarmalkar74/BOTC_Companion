@@ -8,6 +8,7 @@ import { ScriptBuilderPage } from './pages/ScriptBuilderPage';
 import { RoleAssignmentPage } from './pages/RoleAssignmentPage';
 import { GamePage } from './pages/GamePage';
 import { NightAssistantPage } from './pages/NightAssistantPage';
+import { DayAssistantPage } from './pages/DayAssistantPage';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="/assign" element={<RoleAssignmentPage />} />
         <Route path="/game" element={<GamePage />} />
         <Route path="/night" element={<NightAssistantPage />} />
+        <Route path="/day" element={<DayAssistantPage />} />
       </Routes>
     </BrowserRouter>
   );

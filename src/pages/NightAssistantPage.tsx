@@ -236,7 +236,7 @@ export function NightAssistantPage() {
       .from('rooms')
       .update({ phase: newPhase, night_step_key: null })
       .eq('id', roomId);
-    navigate('/game');
+    navigate('/day');
   }
 
   // ── Render ────────────────────────────────────────────────────────────

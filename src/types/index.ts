@@ -49,6 +49,30 @@ export interface Player {
   created_at: string;
 }
 
+/**
+ * A single event recorded during the day phase.
+ * payload shape per event_type:
+ *   nomination: { nominator_id: string, nominee_id: string }
+ *   execution:  { player_id: string }
+ */
+export interface DayEvent {
+  id: string;
+  room_id: string;
+  day_number: number;
+  event_type: 'nomination' | 'execution';
+  payload: Record<string, string>;
+  created_at: string;
+}
+
+/** Storyteller private notes for one day (one row per room per day). */
+export interface DayNote {
+  id: string;
+  room_id: string;
+  day_number: number;
+  notes: string;
+  updated_at: string;
+}
+
 export interface NightAction {
   id: string;
   room_id: string;

@@ -238,6 +238,14 @@ export function GamePage() {
             <span className="room-code-value">{room?.code}</span>
           </div>
           <span className="host-badge">Storyteller</span>
+          {room?.phase.startsWith('Day') && (
+            <button
+              className="btn btn-secondary grimoire-day-btn"
+              onClick={() => navigate('/day')}
+            >
+              Day Manager
+            </button>
+          )}
           <button
             className="btn btn-primary grimoire-night-btn"
             onClick={handleOpenNightAssistant}
