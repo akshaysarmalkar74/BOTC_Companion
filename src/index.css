@@ -211,29 +211,28 @@ body {
   color: var(--text);
 }
 
-/* ── Lobby ─────────────────────────────────────────────── */
+/* ── Lobby page ────────────────────────────────────────── */
 
-.lobby-container {
-  max-width: 640px;
-  margin: 0 auto;
+.lobby-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 16px 32px;
 }
 
 .lobby-header {
+  width: 100%;
+  max-width: 560px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 32px;
-  padding-bottom: 24px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
   border-bottom: 1px solid var(--border);
 }
 
-.lobby-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  margin-bottom: 10px;
-}
-
-.room-code-display {
+.room-code-group {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -254,6 +253,17 @@ body {
   color: var(--accent);
 }
 
+.lobby-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lobby-player-count {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
 .host-badge {
   background: var(--accent-dim);
   color: var(--accent);
@@ -268,134 +278,240 @@ body {
   flex-shrink: 0;
 }
 
-.section-title {
-  font-size: 0.75rem;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  font-weight: 600;
-  margin-bottom: 12px;
+.lobby-circle-area {
+  flex: 1;
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
 }
 
-.section-hint {
-  font-size: 0.75rem;
-  color: var(--muted);
-  font-weight: 400;
-  text-transform: none;
-  letter-spacing: 0;
-  opacity: 0.7;
-}
+/* ── Circular seating ──────────────────────────────────── */
 
-/* ── Player list ───────────────────────────────────────── */
-
-.player-list {
+.seating-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
 }
 
-.player-item {
+/*
+ * Square container that scales to available width up to 560 px.
+ * All child positions are expressed as percentages of this square,
+ * making the layout fully responsive without JavaScript measurements.
+ */
+.seating-circle {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  aspect-ratio: 1;
+}
+
+/* Subtle guide ring that shows where seats are positioned */
+.seating-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* Host hint text beneath the circle */
+.seating-hint {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  text-align: center;
+  max-width: 340px;
+  line-height: 1.5;
+}
+
+/* ── Player seat ───────────────────────────────────────── */
+
+/*
+ * Each seat is an absolutely positioned element centred on its
+ * calculated (x%, y%) coordinate via translate(-50%, -50%).
+ */
+.player-seat {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+
+.player-seat:focus {
+  outline: none;
+}
+
+.player-seat:focus-visible .seat-token {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* Host view: pointer cursor and hover highlight */
+.player-seat.is-interactive {
+  cursor: pointer;
+}
+
+.player-seat.is-interactive:hover .seat-token {
+  border-color: rgba(196, 164, 90, 0.45);
+}
+
+/* Selected state: accent ring + glow */
+.player-seat.is-selected {
+  z-index: 10;
+}
+
+.player-seat.is-selected .seat-token {
+  border-color: var(--accent);
+  border-width: 2px;
+  box-shadow: 0 0 0 4px rgba(196, 164, 90, 0.15), 0 0 16px rgba(196, 164, 90, 0.25);
+}
+
+/*
+ * ── Seat token ─────────────────────────────────────────────────────
+ *
+ * The circular token representing a player's physical seat.
+ *
+ * Interior space is reserved for future phases:
+ *   ▸ Character role icon / artwork
+ *   ▸ Dead / alive visual state (shroud overlay)
+ *
+ * The area surrounding the token perimeter is reserved for:
+ *   ▸ Reminder tokens (small satellite circles)
+ *   ▸ Storyteller markers
+ *   ▸ Ghost vote indicator
+ *
+ * --seat-size defines the token diameter. TOKEN_RADIUS_PX in
+ * PlayerSeat.tsx must equal half this value.
+ */
+.seat-token {
+  --seat-size: 56px;
+  position: relative;
+  width: var(--seat-size);
+  height: var(--seat-size);
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px 14px;
-  transition: background 0.1s;
+  justify-content: center;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
 
-.player-item.dragging {
-  opacity: 0.4;
-  background: var(--surface-high);
+/* Storyteller seat — gold ring */
+.seat-token.is-storyteller {
+  border-color: var(--accent);
+  border-width: 2px;
+  background: rgba(196, 164, 90, 0.06);
 }
 
-.drag-handle {
+/* Current user's seat — blue-purple tint */
+.seat-token.is-me {
+  border-color: #6868c0;
+  background: rgba(100, 100, 200, 0.07);
+}
+
+/* Placeholder initials — replaced by character art in later phases */
+.seat-initials {
+  font-size: 0.8125rem;
+  font-weight: 600;
   color: var(--muted);
-  cursor: grab;
-  font-size: 1rem;
-  line-height: 1;
-  padding: 2px 3px;
-  border-radius: 3px;
   user-select: none;
-  flex-shrink: 0;
-  touch-action: none;
+  letter-spacing: 0.5px;
+  pointer-events: none;
 }
 
-.drag-handle:hover {
-  color: var(--text);
-  background: var(--surface-high);
-}
-
-.drag-handle:active {
-  cursor: grabbing;
-}
-
-.player-presence {
-  width: 7px;
-  height: 7px;
+/* Online / offline presence dot at the token's bottom-right corner */
+.seat-presence {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  flex-shrink: 0;
+  border: 1.5px solid var(--surface);
+  pointer-events: none;
 }
 
-.player-presence.online {
+.seat-presence.online {
   background: var(--online);
   box-shadow: 0 0 4px var(--online);
 }
 
-.player-presence.offline {
+.seat-presence.offline {
   background: var(--offline);
 }
 
-.player-name {
-  flex: 1;
-  font-size: 0.9375rem;
-  min-width: 0;
+/*
+ * Remove button — small ✕ circle at the token's top-right corner.
+ * Shown only when the host has selected a non-host seat.
+ */
+.seat-remove-btn {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  border: 2px solid var(--bg);
+  font-size: 0.5rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.15s;
+  z-index: 20;
+}
+
+.seat-remove-btn:hover {
+  background: #f06565;
+}
+
+/*
+ * ── Name label ─────────────────────────────────────────────────────
+ *
+ * Positioned radially outward from the seat token centre.
+ * --lx and --ly are set inline from the seat's angle, so the label
+ * always reads away from the circle regardless of clock position.
+ */
+.seat-label {
+  position: absolute;
+  left: calc(50% + var(--lx));
+  top: calc(50% + var(--ly));
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  pointer-events: none;
+  text-align: center;
+}
+
+.seat-name {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  max-width: 80px;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  display: block;
 }
 
-.player-badge {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 2px 7px;
-  border-radius: 3px;
-  flex-shrink: 0;
-}
-
-.player-badge.host {
-  background: var(--accent-dim);
-  color: var(--accent);
-  border: 1px solid rgba(196, 164, 90, 0.25);
-}
-
-.player-badge.me {
-  background: rgba(100, 100, 220, 0.12);
+.seat-name.is-me {
   color: #9090d8;
-  border: 1px solid rgba(100, 100, 220, 0.25);
 }
 
-.player-remove-btn {
-  background: none;
-  border: 1px solid rgba(224, 85, 85, 0.3);
-  color: var(--danger);
-  font-size: 0.8125rem;
-  font-family: inherit;
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background 0.15s;
-  flex-shrink: 0;
-}
-
-.player-remove-btn:hover {
-  background: rgba(224, 85, 85, 0.1);
+.seat-st-badge {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 
 /* ── Utility ───────────────────────────────────────────── */
