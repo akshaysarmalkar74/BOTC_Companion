@@ -29,24 +29,29 @@ export function LobbyPage() {
     async function load() {
       const [{ data: roomData }, { data: playerData }] = await Promise.all([
         supabase.from('rooms').select('*').eq('id', roomId).single(),
+        // role is intentionally excluded — players must not see each other's roles
         supabase
           .from('players')
-          .select('*')
+          .select('id, room_id, display_name, is_host, seat_order, created_at')
           .eq('room_id', roomId)
           .order('seat_order'),
       ]);
 
       if (roomData) {
-        setRoom(roomData as Room);
-        const script = (roomData as Room).script;
-        setScriptCount(Array.isArray(script) ? script.length : 0);
+        const r = roomData as Room;
+        setRoom(r);
+        setScriptCount(Array.isArray(r.script) ? r.script.length : 0);
+        if (r.status === 'in_progress') {
+          navigate('/game');
+          return;
+        }
       }
       if (playerData) setPlayers(playerData as Player[]);
       setLoading(false);
     }
 
     load();
-  }, [roomId]);
+  }, [roomId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Realtime subscription + presence ──────────────────────────────
   useEffect(() => {
@@ -81,13 +86,39 @@ export function LobbyPage() {
           filter: `room_id=eq.${roomId}`,
         },
         (payload) => {
+          const updated = payload.new as Player;
+          // Only update lobby-visible fields — never expose role to other players
           setPlayers((prev) =>
             prev
               .map((p) =>
-                p.id === (payload.new as Player).id ? (payload.new as Player) : p
+                p.id === updated.id
+                  ? {
+                      ...p,
+                      display_name: updated.display_name,
+                      is_host: updated.is_host,
+                      seat_order: updated.seat_order,
+                    }
+                  : p
               )
               .sort((a, b) => a.seat_order - b.seat_order)
           );
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'rooms',
+          filter: `id=eq.${roomId}`,
+        },
+        (payload) => {
+          const updated = payload.new as Room;
+          setRoom(updated);
+          setScriptCount(Array.isArray(updated.script) ? updated.script.length : 0);
+          if (updated.status === 'in_progress') {
+            navigate('/game');
+          }
         }
       )
       .on(
@@ -206,14 +237,24 @@ export function LobbyPage() {
           Character Reference
         </button>
         {isHost && (
-          <button
-            className="lobby-nav-btn lobby-nav-btn--accent"
-            onClick={() => navigate('/script')}
-          >
-            {scriptCount === null || scriptCount === 0
-              ? 'Build Script'
-              : `Script · ${scriptCount} characters`}
-          </button>
+          <>
+            <button
+              className="lobby-nav-btn lobby-nav-btn--accent"
+              onClick={() => navigate('/script')}
+            >
+              {scriptCount === null || scriptCount === 0
+                ? 'Build Script'
+                : `Script · ${scriptCount} characters`}
+            </button>
+            <button
+              className="lobby-nav-btn lobby-nav-btn--primary"
+              onClick={() => navigate('/assign')}
+              disabled={!scriptCount}
+              title={!scriptCount ? 'Build a script first' : undefined}
+            >
+              Assign Roles
+            </button>
+          </>
         )}
       </nav>
 

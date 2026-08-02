@@ -1,8 +1,11 @@
+export type RoomStatus = 'lobby' | 'in_progress';
+
 export interface Room {
   id: string;
   code: string;
   host_id: string | null;
-  script: string[]; // array of character IDs — added Phase 2
+  script: string[];      // array of character IDs — added Phase 2
+  status: RoomStatus;    // game lifecycle state — added Phase 3
   created_at: string;
 }
 
@@ -37,6 +40,7 @@ export interface Player {
   display_name: string;
   is_host: boolean;
   seat_order: number;
+  role: string | null; // character ID — assigned Phase 3, null until then
   created_at: string;
 }
 

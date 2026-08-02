@@ -5,6 +5,8 @@ import { JoinRoomPage } from './pages/JoinRoomPage';
 import { LobbyPage } from './pages/LobbyPage';
 import { CharacterReferencePage } from './pages/CharacterReferencePage';
 import { ScriptBuilderPage } from './pages/ScriptBuilderPage';
+import { RoleAssignmentPage } from './pages/RoleAssignmentPage';
+import { GamePage } from './pages/GamePage';
 
 export default function App() {
   return (
@@ -16,6 +18,8 @@ export default function App() {
         <Route path="/lobby" element={<LobbyPage />} />
         <Route path="/characters" element={<CharacterReferencePage />} />
         <Route path="/script" element={<ScriptBuilderPage />} />
+        <Route path="/assign" element={<RoleAssignmentPage />} />
+        <Route path="/game" element={<GamePage />} />
       </Routes>
     </BrowserRouter>
   );
