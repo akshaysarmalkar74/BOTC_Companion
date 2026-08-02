@@ -6,7 +6,8 @@ export interface Room {
   host_id: string | null;
   script: string[];      // array of character IDs — added Phase 2
   status: RoomStatus;    // game lifecycle state — added Phase 3
-  phase: string;         // e.g. "Night 1", "Day 2" — added Phase 4
+  phase: string;              // e.g. "Night 1", "Day 2" — added Phase 4
+  night_step_key: string | null; // current Night Assistant step — Phase 5
   created_at: string;
 }
 
@@ -46,6 +47,17 @@ export interface Player {
   ghost_vote_used: boolean;   // ghost vote consumed — Phase 4
   notes: string;              // Storyteller-only notes — Phase 4
   created_at: string;
+}
+
+export interface NightAction {
+  id: string;
+  room_id: string;
+  night_number: number;
+  step_key: string;
+  target_ids: string[];
+  notes: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ReminderToken {

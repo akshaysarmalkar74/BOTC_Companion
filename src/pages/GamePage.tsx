@@ -33,7 +33,7 @@ export function GamePage() {
     async function load() {
       const { data: roomData } = await supabase
         .from('rooms')
-        .select('id, code, status, script, host_id, phase, created_at')
+        .select('id, code, status, script, host_id, phase, night_step_key, created_at')
         .eq('id', roomId)
         .single();
 
@@ -174,6 +174,21 @@ export function GamePage() {
     await supabase.from('rooms').update({ phase }).eq('id', roomId);
   };
 
+  const handleOpenNightAssistant = async () => {
+    if (!room) return;
+    // If currently in a day phase, advance to the next night before opening
+    if (room.phase.startsWith('Day')) {
+      const n = parseInt(room.phase.split(' ')[1]) || 1;
+      const newPhase = `Night ${n + 1}`;
+      await supabase
+        .from('rooms')
+        .update({ phase: newPhase, night_step_key: null })
+        .eq('id', roomId);
+      setRoom((prev) => prev ? { ...prev, phase: newPhase, night_step_key: null } : prev);
+    }
+    navigate('/night');
+  };
+
   const handleAddToken = async (tokenKey: string) => {
     if (!selectedId || !room) return;
     const { data, error } = await supabase
@@ -223,6 +238,16 @@ export function GamePage() {
             <span className="room-code-value">{room?.code}</span>
           </div>
           <span className="host-badge">Storyteller</span>
+          <button
+            className="btn btn-primary grimoire-night-btn"
+            onClick={handleOpenNightAssistant}
+          >
+            {room?.night_step_key && room.night_step_key !== 'complete'
+              ? 'Continue Night'
+              : room?.phase.startsWith('Day')
+              ? `Start Night ${parseInt(room.phase.split(' ')[1] || '1') + 1}`
+              : 'Night Assistant'}
+          </button>
         </header>
 
         <div className="grimoire-circle-area">
