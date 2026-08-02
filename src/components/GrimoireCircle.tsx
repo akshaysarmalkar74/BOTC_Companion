@@ -1,6 +1,7 @@
 import { GrimoireSeat } from './GrimoireSeat';
 import { TROUBLE_BREWING } from '../data/troubleBrewing';
-import type { Player, Room } from '../types';
+import { TOKEN_BY_KEY } from '../data/reminderTokens';
+import type { Player, Room, ReminderToken } from '../types';
 
 const RADIUS_PCT = 38;
 
@@ -10,6 +11,7 @@ interface Props {
   onSelect: (id: string | null) => void;
   room: Room;
   onPhaseChange: (phase: string) => void;
+  reminderTokens: ReminderToken[];
 }
 
 // "Night 1" → "Day 1" → "Night 2" → "Day 2" → …
@@ -23,7 +25,7 @@ function prevPhase(phase: string): string {
   const m = phase.match(/^(Night|Day) (\d+)$/);
   if (!m) return phase;
   if (m[1] === 'Day') return `Night ${m[2]}`;
-  if (parseInt(m[2]) <= 1) return phase; // can't go before Night 1
+  if (parseInt(m[2]) <= 1) return phase;
   return `Day ${parseInt(m[2]) - 1}`;
 }
 
@@ -33,8 +35,8 @@ export function GrimoireCircle({
   onSelect,
   room,
   onPhaseChange,
+  reminderTokens,
 }: Props) {
-  // Storyteller is excluded — only players sit around the circle
   const seats = players.filter((p) => !p.is_host);
   const n = seats.length;
   const ringSize = RADIUS_PCT * 2;
@@ -58,10 +60,8 @@ export function GrimoireCircle({
 
         {/*
          * ── Centre panel ──────────────────────────────────────────────
-         * Displays room info and the current game phase.
-         * Phase can be advanced or rewound with ‹/› buttons.
-         *
-         * Space is reserved here for future Night Assistant controls.
+         * Room info + phase navigation.
+         * Space reserved for Night Assistant controls in a later phase.
          */}
         <div className="grimoire-center">
           <div className="grimoire-center-code">{room.code}</div>
@@ -100,6 +100,15 @@ export function GrimoireCircle({
             ? (TROUBLE_BREWING.find((c) => c.id === player.role) ?? null)
             : null;
 
+          // Resolve this player's reminder tokens to display tokens
+          const seatTokens = reminderTokens
+            .filter((t) => t.player_id === player.id)
+            .map((t) => {
+              const def = TOKEN_BY_KEY.get(t.token_key);
+              return def ? { id: t.id, label: def.label, color: def.color } : null;
+            })
+            .filter((t): t is { id: string; label: string; color: string } => t !== null);
+
           return (
             <GrimoireSeat
               key={player.id}
@@ -109,6 +118,7 @@ export function GrimoireCircle({
               y={y}
               angle={angle}
               isSelected={player.id === selectedId}
+              tokens={seatTokens}
               onClick={() => onSelect(player.id === selectedId ? null : player.id)}
             />
           );

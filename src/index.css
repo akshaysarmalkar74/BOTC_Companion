@@ -1509,6 +1509,43 @@ body {
   color: var(--accent);
 }
 
+/* ── Reminder token chips (on seat label) ─────────────── */
+
+/*
+ * Small coloured chips rendered in the radial label below the
+ * character name.  At most MAX_VISIBLE_CHIPS are shown; the rest
+ * collapse into a "+N" overflow chip.
+ */
+.grimoire-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  justify-content: center;
+  max-width: 80px;
+  margin-top: 2px;
+}
+
+.grimoire-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 14px;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-size: 0.5625rem;       /* 9 px */
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+  white-space: nowrap;
+  max-width: 62px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.2px;
+}
+
+.grimoire-chip--overflow {
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--muted);
+}
+
 /* ── Player detail panel ───────────────────────────────── */
 
 /* Semi-transparent backdrop; closes the panel on click */
@@ -1659,6 +1696,111 @@ body {
 .panel-toggle-btn--muted {
   color: var(--muted);
   border-color: var(--border);
+}
+
+/* Reminder tokens section in the panel */
+.panel-tokens-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panel-tokens-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-add-token-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.panel-add-token-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.panel-token-select {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.875rem;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.panel-token-select:focus {
+  outline: none;
+  border-color: var(--accent-hover);
+}
+
+.panel-token-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.panel-token-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-token-chip {
+  height: 20px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.panel-token-source {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-token-remove {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.625rem;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s;
+}
+
+.panel-token-remove:hover {
+  color: var(--danger);
+  background: rgba(224, 85, 85, 0.08);
+}
+
+.panel-tokens-empty {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  font-style: italic;
 }
 
 /* Notes section */

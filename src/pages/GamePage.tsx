@@ -6,15 +6,16 @@ import { RoleRevealCard } from '../components/RoleRevealCard';
 import { GrimoireCircle } from '../components/GrimoireCircle';
 import { PlayerDetailPanel } from '../components/PlayerDetailPanel';
 import { TROUBLE_BREWING } from '../data/troubleBrewing';
-import type { Player, Room } from '../types';
+import type { Player, Room, ReminderToken } from '../types';
 
 export function GamePage() {
-  const [room, setRoom]             = useState<Room | null>(null);
-  const [myRole, setMyRole]         = useState<string | null>(null);
-  const [allPlayers, setAllPlayers] = useState<Player[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [revealed, setRevealed]     = useState(false);
-  const [loading, setLoading]       = useState(true);
+  const [room, setRoom]                     = useState<Room | null>(null);
+  const [myRole, setMyRole]                 = useState<string | null>(null);
+  const [allPlayers, setAllPlayers]         = useState<Player[]>([]);
+  const [reminderTokens, setReminderTokens] = useState<ReminderToken[]>([]);
+  const [selectedId, setSelectedId]         = useState<string | null>(null);
+  const [revealed, setRevealed]             = useState(false);
+  const [loading, setLoading]               = useState(true);
   const navigate = useNavigate();
 
   const session = loadSession();
@@ -43,16 +44,23 @@ export function GamePage() {
       setRoom(roomData as Room);
 
       if (isHost) {
-        const { data: players } = await supabase
-          .from('players')
-          .select(
-            'id, display_name, seat_order, is_host, role, is_alive, ghost_vote_used, notes, room_id, created_at'
-          )
-          .eq('room_id', roomId)
-          .eq('is_host', false)
-          .order('seat_order');
+        const [{ data: players }, { data: tokens }] = await Promise.all([
+          supabase
+            .from('players')
+            .select(
+              'id, display_name, seat_order, is_host, role, is_alive, ghost_vote_used, notes, room_id, created_at'
+            )
+            .eq('room_id', roomId)
+            .eq('is_host', false)
+            .order('seat_order'),
+          supabase
+            .from('reminder_tokens')
+            .select('id, player_id, room_id, token_key, created_at')
+            .eq('room_id', roomId),
+        ]);
 
         setAllPlayers((players ?? []) as Player[]);
+        setReminderTokens((tokens ?? []) as ReminderToken[]);
       } else {
         // Players only fetch their own role — no other player data is read
         const { data: me } = await supabase
@@ -87,10 +95,10 @@ export function GamePage() {
               p.id === updated.id
                 ? {
                     ...p,
-                    display_name:     updated.display_name,
-                    is_alive:         updated.is_alive,
-                    ghost_vote_used:  updated.ghost_vote_used,
-                    notes:            updated.notes,
+                    display_name:    updated.display_name,
+                    is_alive:        updated.is_alive,
+                    ghost_vote_used: updated.ghost_vote_used,
+                    notes:           updated.notes,
                   }
                 : p
             )
@@ -103,6 +111,26 @@ export function GamePage() {
         (payload) => {
           const updated = payload.new as Room;
           setRoom((prev) => (prev ? { ...prev, phase: updated.phase } : prev));
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'reminder_tokens', filter: `room_id=eq.${roomId}` },
+        (payload) => {
+          const newToken = payload.new as ReminderToken;
+          setReminderTokens((prev) => {
+            // Deduplicate — optimistic insert may already be present
+            if (prev.find((t) => t.id === newToken.id)) return prev;
+            return [...prev, newToken];
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'reminder_tokens', filter: `room_id=eq.${roomId}` },
+        (payload) => {
+          const deletedId = (payload.old as { id: string }).id;
+          setReminderTokens((prev) => prev.filter((t) => t.id !== deletedId));
         }
       )
       .subscribe();
@@ -118,7 +146,6 @@ export function GamePage() {
     const player = allPlayers.find((p) => p.id === targetId);
     if (!player) return;
     const newAlive = !player.is_alive;
-    // Optimistic update
     setAllPlayers((prev) =>
       prev.map((p) => (p.id === targetId ? { ...p, is_alive: newAlive } : p))
     );
@@ -147,6 +174,25 @@ export function GamePage() {
     await supabase.from('rooms').update({ phase }).eq('id', roomId);
   };
 
+  const handleAddToken = async (tokenKey: string) => {
+    if (!selectedId || !room) return;
+    const { data, error } = await supabase
+      .from('reminder_tokens')
+      .insert({ player_id: selectedId, room_id: room.id, token_key: tokenKey })
+      .select('id, player_id, room_id, token_key, created_at')
+      .single();
+    if (!error && data) {
+      // Optimistic update (realtime will also fire and deduplicate)
+      setReminderTokens((prev) => [...prev, data as ReminderToken]);
+    }
+  };
+
+  const handleRemoveToken = async (tokenId: string) => {
+    // Optimistic remove
+    setReminderTokens((prev) => prev.filter((t) => t.id !== tokenId));
+    await supabase.from('reminder_tokens').delete().eq('id', tokenId);
+  };
+
   // ── Render ─────────────────────────────────────────────────────────
 
   if (loading) {
@@ -165,6 +211,9 @@ export function GamePage() {
     const selectedCharacter = selectedPlayer?.role
       ? (TROUBLE_BREWING.find((c) => c.id === selectedPlayer.role) ?? null)
       : null;
+    const selectedPlayerTokens = selectedId
+      ? reminderTokens.filter((t) => t.player_id === selectedId)
+      : [];
 
     return (
       <div className="grimoire-page">
@@ -184,6 +233,7 @@ export function GamePage() {
               onSelect={setSelectedId}
               room={room}
               onPhaseChange={handlePhaseChange}
+              reminderTokens={reminderTokens}
             />
           )}
         </div>
@@ -192,10 +242,13 @@ export function GamePage() {
           <PlayerDetailPanel
             player={selectedPlayer}
             character={selectedCharacter}
+            playerTokens={selectedPlayerTokens}
             onClose={() => setSelectedId(null)}
             onToggleAlive={handleToggleAlive}
             onToggleGhostVote={handleToggleGhostVote}
             onNotesSave={handleNotesSave}
+            onAddToken={handleAddToken}
+            onRemoveToken={handleRemoveToken}
           />
         )}
       </div>

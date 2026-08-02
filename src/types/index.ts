@@ -48,6 +48,14 @@ export interface Player {
   created_at: string;
 }
 
+export interface ReminderToken {
+  id: string;
+  player_id: string;
+  room_id: string;
+  token_key: string;    // references ReminderTokenDef.key
+  created_at: string;
+}
+
 export interface Session {
   playerId: string;
   roomId: string;
