@@ -11,10 +11,13 @@ import { NightAssistantPage } from './pages/NightAssistantPage';
 import { DayAssistantPage } from './pages/DayAssistantPage';
 import { NightResolutionPage } from './pages/NightResolutionPage';
 import { GameHistoryPage } from './pages/GameHistoryPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { OfflineBanner } from './components/OfflineBanner';
 
 export default function App() {
   return (
     <BrowserRouter>
+      <OfflineBanner />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/create" element={<CreateRoomPage />} />
@@ -28,6 +31,7 @@ export default function App() {
         <Route path="/resolve" element={<NightResolutionPage />} />
         <Route path="/history" element={<GameHistoryPage />} />
         <Route path="/day" element={<DayAssistantPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
       </Routes>
     </BrowserRouter>
   );

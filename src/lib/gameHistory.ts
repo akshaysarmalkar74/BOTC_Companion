@@ -316,6 +316,27 @@ export async function recordDayNote(
   });
 }
 
+// ── Game end ──────────────────────────────────────────────────────────────────
+
+export async function recordGameEnd(
+  roomId: string,
+  phase: string,
+  outcome: string,
+  players: Player[],
+): Promise<void> {
+  const label =
+    outcome === 'good'      ? 'Good wins!'
+    : outcome === 'evil'    ? 'Evil wins!'
+    : 'Game cancelled.';
+  await recordEvent({
+    roomId, phase,
+    type:        'game_end',
+    description: label,
+    playerIds:   players.map((p) => p.id),
+    metadata:    { outcome },
+  });
+}
+
 // ── Export architecture ───────────────────────────────────────────────────────
 
 /**

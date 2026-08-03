@@ -7,6 +7,11 @@ import { supabase } from '../lib/supabase';
 import { loadSession } from '../lib/roomUtils';
 import type { Team } from '../types';
 
+interface RecentScript {
+  script: string[];
+  label: string; // e.g. "Night 2, Day 2"
+}
+
 type Filter = 'all' | Team;
 
 const FILTER_TABS: { value: Filter; label: string }[] = [
@@ -26,11 +31,12 @@ const TEAM_LABELS: Record<Team, string> = {
 };
 
 export function ScriptBuilderPage() {
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [playerCount, setPlayerCount] = useState(0);
-  const [filter, setFilter] = useState<Filter>('all');
-  const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds]   = useState<string[]>([]);
+  const [playerCount, setPlayerCount]   = useState(0);
+  const [filter, setFilter]             = useState<Filter>('all');
+  const [saving, setSaving]             = useState(false);
+  const [loading, setLoading]           = useState(true);
+  const [recentScripts, setRecentScripts] = useState<RecentScript[]>([]);
   const navigate = useNavigate();
 
   const session = loadSession();
@@ -47,19 +53,42 @@ export function ScriptBuilderPage() {
   // ── Load existing script and player count ──────────────────────────
   useEffect(() => {
     async function load() {
-      const [{ data: room }, { data: players }] = await Promise.all([
+      const [{ data: room }, { data: players }, { data: gameEvents }] = await Promise.all([
         supabase.from('rooms').select('script').eq('id', roomId).single(),
         supabase
           .from('players')
           .select('id')
           .eq('room_id', roomId)
           .eq('is_host', false),
+        supabase
+          .from('game_events')
+          .select('metadata, phase')
+          .eq('room_id', roomId)
+          .eq('event_type', 'game_start')
+          .order('created_at', { ascending: false })
+          .limit(3),
       ]);
 
       if (room?.script && Array.isArray(room.script)) {
         setSelectedIds(room.script as string[]);
       }
       setPlayerCount(players?.length ?? 0);
+
+      if (gameEvents && gameEvents.length > 0) {
+        const recent: RecentScript[] = gameEvents
+          .map((e, idx) => {
+            const meta = e.metadata as { script?: string[] };
+            const script = meta?.script;
+            if (!Array.isArray(script) || script.length === 0) return null;
+            return {
+              script,
+              label: `Previous game ${idx === 0 ? '(latest)' : idx === 1 ? '(2nd)' : '(3rd)'}`,
+            };
+          })
+          .filter((s): s is RecentScript => s !== null);
+        setRecentScripts(recent);
+      }
+
       setLoading(false);
     }
     load();
@@ -181,6 +210,23 @@ export function ScriptBuilderPage() {
             </button>
           </div>
         </div>
+
+        {/* Recent scripts */}
+        {recentScripts.length > 0 && (
+          <div className="recent-scripts">
+            <span className="recent-scripts-label">Recent:</span>
+            {recentScripts.map((rs, i) => (
+              <button
+                key={i}
+                className="btn btn-secondary recent-script-btn"
+                onClick={() => setSelectedIds(rs.script)}
+                title={rs.script.join(', ')}
+              >
+                {rs.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Player count + setup overview */}
         <div className="setup-panel">

@@ -6,7 +6,7 @@ import { RoleRevealCard } from '../components/RoleRevealCard';
 import { GrimoireCircle } from '../components/GrimoireCircle';
 import { PlayerDetailPanel } from '../components/PlayerDetailPanel';
 import { TROUBLE_BREWING } from '../data/troubleBrewing';
-import { recordManualDeath } from '../lib/gameHistory';
+import { recordManualDeath, recordGameEnd } from '../lib/gameHistory';
 import type { Player, Room, ReminderToken } from '../types';
 
 export function GamePage() {
@@ -17,6 +17,9 @@ export function GamePage() {
   const [selectedId, setSelectedId]         = useState<string | null>(null);
   const [revealed, setRevealed]             = useState(false);
   const [loading, setLoading]               = useState(true);
+  const [showEndModal, setShowEndModal]     = useState(false);
+  const [endingGame, setEndingGame]         = useState(false);
+  const [rematchWorking, setRematchWorking] = useState(false);
   const navigate = useNavigate();
 
   const session = loadSession();
@@ -34,11 +37,11 @@ export function GamePage() {
     async function load() {
       const { data: roomData } = await supabase
         .from('rooms')
-        .select('id, code, status, script, host_id, phase, night_step_key, created_at')
+        .select('id, code, status, script, host_id, phase, night_step_key, outcome, ended_at, created_at')
         .eq('id', roomId)
         .single();
 
-      if (!roomData || roomData.status !== 'in_progress') {
+      if (!roomData || (roomData.status !== 'in_progress' && roomData.status !== 'completed')) {
         navigate('/lobby');
         return;
       }
@@ -213,6 +216,46 @@ export function GamePage() {
     await supabase.from('reminder_tokens').delete().eq('id', tokenId);
   };
 
+  const handleEndGame = async (outcome: 'good' | 'evil' | 'cancelled') => {
+    if (!room) return;
+    setEndingGame(true);
+    const endedAt = new Date().toISOString();
+    await supabase
+      .from('rooms')
+      .update({ status: 'completed', outcome, ended_at: endedAt })
+      .eq('id', roomId);
+    void recordGameEnd(roomId, room.phase, outcome, allPlayers);
+    setRoom((prev) => prev ? { ...prev, status: 'completed', outcome, ended_at: endedAt } : prev);
+    setShowEndModal(false);
+    setEndingGame(false);
+  };
+
+  const handleRematch = async () => {
+    if (!room) return;
+    setRematchWorking(true);
+    // Clear all game-specific data for this room
+    await Promise.all([
+      supabase.from('night_actions').delete().eq('room_id', roomId),
+      supabase.from('day_events').delete().eq('room_id', roomId),
+      supabase.from('day_notes').delete().eq('room_id', roomId),
+      supabase.from('reminder_tokens').delete().eq('room_id', roomId),
+      supabase.from('game_events').delete().eq('room_id', roomId),
+    ]);
+    // Reset all players
+    await supabase
+      .from('players')
+      .update({ role: null, is_alive: true, ghost_vote_used: false, notes: '' })
+      .eq('room_id', roomId)
+      .eq('is_host', false);
+    // Reset room to lobby
+    await supabase
+      .from('rooms')
+      .update({ status: 'lobby', phase: 'Night 1', outcome: null, ended_at: null, night_step_key: null })
+      .eq('id', roomId);
+    setRematchWorking(false);
+    navigate('/assign');
+  };
+
   // ── Render ─────────────────────────────────────────────────────────
 
   if (loading) {
@@ -234,6 +277,43 @@ export function GamePage() {
     const selectedPlayerTokens = selectedId
       ? reminderTokens.filter((t) => t.player_id === selectedId)
       : [];
+
+    // ── Completed state ─────────────────────────────────────────────
+    if (room?.status === 'completed') {
+      const outcomeLabel =
+        room.outcome === 'good'    ? 'Good wins!'
+        : room.outcome === 'evil'  ? 'Evil wins!'
+        : 'Game cancelled.';
+      const outcomeClass =
+        room.outcome === 'good'    ? 'outcome-good'
+        : room.outcome === 'evil'  ? 'outcome-evil'
+        : 'outcome-cancelled';
+
+      return (
+        <div className="page centered">
+          <div className={`form-card game-over-card ${outcomeClass}`}>
+            <p className="game-over-eyebrow">Game Over</p>
+            <h1 className="game-over-title">{outcomeLabel}</h1>
+            <p className="game-over-room">Room {room.code}</p>
+            <div className="game-over-actions">
+              <button
+                className="btn btn-primary"
+                onClick={handleRematch}
+                disabled={rematchWorking}
+              >
+                {rematchWorking ? 'Setting up…' : 'Rematch'}
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => navigate('/history')}
+              >
+                View History
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="grimoire-page">
@@ -267,6 +347,12 @@ export function GamePage() {
               ? `Start Night ${parseInt(room.phase.split(' ')[1] || '1') + 1}`
               : 'Night Assistant'}
           </button>
+          <button
+            className="btn btn-danger grimoire-end-btn"
+            onClick={() => setShowEndModal(true)}
+          >
+            End Game
+          </button>
         </header>
 
         <div className="grimoire-circle-area">
@@ -294,6 +380,46 @@ export function GamePage() {
             onAddToken={handleAddToken}
             onRemoveToken={handleRemoveToken}
           />
+        )}
+
+        {/* End Game Modal */}
+        {showEndModal && (
+          <div className="modal-overlay" onClick={() => setShowEndModal(false)}>
+            <div className="modal-card end-game-modal" onClick={(e) => e.stopPropagation()}>
+              <h2 className="modal-title">End Game</h2>
+              <p className="modal-subtitle">Declare the outcome:</p>
+              <div className="end-game-options">
+                <button
+                  className="btn end-game-btn end-game-good"
+                  onClick={() => handleEndGame('good')}
+                  disabled={endingGame}
+                >
+                  Good Wins
+                </button>
+                <button
+                  className="btn end-game-btn end-game-evil"
+                  onClick={() => handleEndGame('evil')}
+                  disabled={endingGame}
+                >
+                  Evil Wins
+                </button>
+                <button
+                  className="btn end-game-btn end-game-cancel"
+                  onClick={() => handleEndGame('cancelled')}
+                  disabled={endingGame}
+                >
+                  Cancel Game
+                </button>
+              </div>
+              <button
+                className="btn btn-secondary modal-dismiss"
+                onClick={() => setShowEndModal(false)}
+                disabled={endingGame}
+              >
+                Go Back
+              </button>
+            </div>
+          </div>
         )}
       </div>
     );

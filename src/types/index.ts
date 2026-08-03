@@ -1,4 +1,4 @@
-export type RoomStatus = 'lobby' | 'in_progress';
+export type RoomStatus = 'lobby' | 'in_progress' | 'completed';
 
 export interface Room {
   id: string;
@@ -8,6 +8,8 @@ export interface Room {
   status: RoomStatus;    // game lifecycle state — added Phase 3
   phase: string;              // e.g. "Night 1", "Day 2" — added Phase 4
   night_step_key: string | null; // current Night Assistant step — Phase 5
+  outcome: string | null;        // 'good' | 'evil' | 'cancelled' — Phase 9
+  ended_at: string | null;       // ISO timestamp when game ended — Phase 9
   created_at: string;
 }
 
@@ -122,7 +124,8 @@ export type GameEventType =
   | 'ghost_vote_used'      // Ghost vote consumed
   | 'reminder_added'       // Reminder token placed
   | 'reminder_removed'     // Reminder token removed
-  | 'day_note';            // Storyteller saved day notes
+  | 'day_note'             // Storyteller saved day notes
+  | 'game_end';            // Game ended (good/evil/cancelled)
 
 /**
  * A single row from the game_events table.
