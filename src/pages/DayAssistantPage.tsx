@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { loadSession } from '../lib/roomUtils';
+import { recordNomination, recordExecution, recordDayNote } from '../lib/gameHistory';
 import { PlayerDetailPanel } from '../components/PlayerDetailPanel';
 import { TROUBLE_BREWING } from '../data/troubleBrewing';
 import type { Player, Room, ReminderToken, DayEvent, DayNote } from '../types';
@@ -204,6 +205,7 @@ export function DayAssistantPage() {
       .select()
       .single();
     if (data) setAllDayEvents((prev) => [...prev, data as DayEvent]);
+    void recordNomination(room.id, room.phase, nominatorId, nomineeId, players);
     setNominatorId('');
     setNomineeId('');
   };
@@ -225,6 +227,7 @@ export function DayAssistantPage() {
     ]);
     if (eventData) setAllDayEvents((prev) => [...prev, eventData as DayEvent]);
     setPlayers((prev) => prev.map((p) => p.id === executeId ? { ...p, is_alive: false } : p));
+    void recordExecution(room.id, room.phase, executeId, players);
     setExecuteId('');
   };
 
@@ -237,6 +240,7 @@ export function DayAssistantPage() {
         { room_id: room.id, day_number: dayNumber, notes: dayNote, updated_at: new Date().toISOString() },
         { onConflict: 'room_id,day_number' }
       );
+    void recordDayNote(room.id, room.phase, dayNote);
   };
 
   const handleToggleAlive = async (targetId: string) => {

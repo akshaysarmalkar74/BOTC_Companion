@@ -6,6 +6,7 @@ import { RoleRevealCard } from '../components/RoleRevealCard';
 import { GrimoireCircle } from '../components/GrimoireCircle';
 import { PlayerDetailPanel } from '../components/PlayerDetailPanel';
 import { TROUBLE_BREWING } from '../data/troubleBrewing';
+import { recordManualDeath } from '../lib/gameHistory';
 import type { Player, Room, ReminderToken } from '../types';
 
 export function GamePage() {
@@ -150,6 +151,10 @@ export function GamePage() {
       prev.map((p) => (p.id === targetId ? { ...p, is_alive: newAlive } : p))
     );
     await supabase.from('players').update({ is_alive: newAlive }).eq('id', targetId);
+    // Record manual death (not resurrection) to history
+    if (!newAlive && room) {
+      void recordManualDeath(roomId, room.phase, targetId, allPlayers);
+    }
   };
 
   const handleToggleGhostVote = async (targetId: string) => {
@@ -238,6 +243,12 @@ export function GamePage() {
             <span className="room-code-value">{room?.code}</span>
           </div>
           <span className="host-badge">Storyteller</span>
+          <button
+            className="btn btn-secondary grimoire-history-btn"
+            onClick={() => navigate('/history')}
+          >
+            History
+          </button>
           {room?.phase.startsWith('Day') && (
             <button
               className="btn btn-secondary grimoire-day-btn"

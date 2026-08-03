@@ -10,6 +10,7 @@ import { GamePage } from './pages/GamePage';
 import { NightAssistantPage } from './pages/NightAssistantPage';
 import { DayAssistantPage } from './pages/DayAssistantPage';
 import { NightResolutionPage } from './pages/NightResolutionPage';
+import { GameHistoryPage } from './pages/GameHistoryPage';
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
         <Route path="/game" element={<GamePage />} />
         <Route path="/night" element={<NightAssistantPage />} />
         <Route path="/resolve" element={<NightResolutionPage />} />
+        <Route path="/history" element={<GameHistoryPage />} />
         <Route path="/day" element={<DayAssistantPage />} />
       </Routes>
     </BrowserRouter>

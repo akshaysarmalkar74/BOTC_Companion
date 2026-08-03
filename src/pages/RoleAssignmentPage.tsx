@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { loadSession } from '../lib/roomUtils';
+import { recordGameStart } from '../lib/gameHistory';
 import { TROUBLE_BREWING } from '../data/troubleBrewing';
 import type { Player, Team } from '../types';
 
@@ -132,6 +133,9 @@ export function RoleAssignmentPage() {
         .from('rooms')
         .update({ status: 'in_progress' })
         .eq('id', roomId);
+
+      // Record game start and role assignments to history (fire-and-forget)
+      void recordGameStart(roomId, players, assignments, script);
 
       navigate('/game');
     } finally {

@@ -16,11 +16,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { loadSession } from '../lib/roomUtils';
+import { recordNightResolution } from '../lib/gameHistory';
 import { resolveNight, buildActionMap } from '../engine/pipeline';
 import { TROUBLE_BREWING } from '../data/troubleBrewing';
 import { getNightNumber } from '../data/nightOrder';
 import type { Player, Room, ReminderToken, NightAction, DayEvent } from '../types';
-import type { NightResolution, ResolutionEvent } from '../engine/types';
+import type { NightResolution, ResolutionEvent, NightActionMap } from '../engine/types';
 
 const EVENT_ICONS: Record<string, string> = {
   death:      '†',
@@ -46,6 +47,7 @@ export function NightResolutionPage() {
   const [room, setRoom]                     = useState<Room | null>(null);
   const [players, setPlayers]               = useState<Player[]>([]);
   const [resolution, setResolution]         = useState<NightResolution | null>(null);
+  const [actionMap, setActionMap]           = useState<NightActionMap>({});
   const [overriddenDeaths, setOverriddenDeaths] = useState<Set<string>>(new Set());
   const [roleOverrides, setRoleOverrides]   = useState<Map<string, string>>(new Map());
   const [loading, setLoading]               = useState(true);
@@ -134,8 +136,10 @@ export function NightResolutionPage() {
         executedPlayerId,
       };
 
-      const res = resolveNight(gameState, buildActionMap(loadedActions));
+      const builtActionMap = buildActionMap(loadedActions);
+      const res = resolveNight(gameState, builtActionMap);
       setResolution(res);
+      setActionMap(builtActionMap);
 
       // Pre-populate override controls with engine suggestions
       setOverriddenDeaths(new Set(res.deaths));
@@ -194,6 +198,20 @@ export function NightResolutionPage() {
       }
 
       await Promise.all(ops);
+
+      // Record history (fire-and-forget — never blocks commit)
+      if (resolution) {
+        void recordNightResolution({
+          roomId,
+          phase: room.phase,
+          nightNumber: getNightNumber(room.phase),
+          actions: actionMap,
+          resolution,
+          committedDeaths: overriddenDeaths,
+          committedRoleChanges: roleOverrides,
+          players,
+        });
+      }
 
       // Advance to day phase
       const nightNum = getNightNumber(room.phase);
