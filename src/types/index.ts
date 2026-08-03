@@ -20,15 +20,9 @@ export type Team = 'townsfolk' | 'outsider' | 'minion' | 'demon';
 /**
  * A single character entry in the game library.
  *
- * Fields marked "future" are intentionally absent in Phase 2 but
- * the model is designed to accommodate them without structural change.
- *
- * Future fields to add here:
- *   firstNight?   : { order: number; reminder: string }
- *   otherNights?  : { order: number; reminder: string }
- *   reminders?    : string[]
- *   isSetup?      : boolean   // Baron, Drunk — affect bag composition
- *   isOncePerGame?: boolean   // Slayer, etc.
+ * All fields are used by the rule engine, the night assistant, and the
+ * validation layer. No ability logic should be hardcoded in UI components —
+ * it should be derivable from this metadata or from a dedicated resolver.
  */
 export interface Character {
   id: string;          // kebab-case identifier, e.g. 'fortune-teller'
@@ -36,6 +30,35 @@ export interface Character {
   team: Team;
   ability: string;     // Short token text (exactly as printed)
   description: string; // Longer explanation for the reference page
+
+  // ── Wake schedule ──────────────────────────────────────────────────────
+  /** Wakes on the first night */
+  firstNight?: boolean;
+  /** Wakes on nights after the first */
+  otherNights?: boolean;
+  /** Wakes specifically WHEN they die at night (Ravenkeeper) */
+  wakeOnDeath?: boolean;
+
+  // ── Ability classification ─────────────────────────────────────────────
+  /** Ability can only be used once per game (Slayer, Virgin) */
+  isOncePerGame?: boolean;
+  /**
+   * Character modifies the bag composition at setup, before Night 1.
+   * Baron: +2 Outsiders / -2 Townsfolk. Drunk: occupies a Townsfolk slot.
+   */
+  isSetup?: boolean;
+  /**
+   * The character has a day-phase ability that may trigger at any point
+   * during the day (Slayer, Saint, Virgin, Mayor).
+   */
+  hasDayAbility?: boolean;
+
+  // ── Reminder tokens this character places ──────────────────────────────
+  /**
+   * Keys of reminder tokens this character is associated with.
+   * Matches ReminderTokenDef.key values in reminderTokens.ts.
+   */
+  reminders?: string[];
 }
 
 export interface Player {

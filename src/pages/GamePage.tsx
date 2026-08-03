@@ -6,7 +6,7 @@ import { RoleRevealCard } from '../components/RoleRevealCard';
 import { GrimoireCircle } from '../components/GrimoireCircle';
 import { PlayerDetailPanel } from '../components/PlayerDetailPanel';
 import { TROUBLE_BREWING } from '../data/troubleBrewing';
-import { recordManualDeath, recordGameEnd } from '../lib/gameHistory';
+import { recordManualDeath, recordGameEnd, recordReminderAdded, recordReminderRemoved } from '../lib/gameHistory';
 import type { Player, Room, ReminderToken } from '../types';
 
 export function GamePage() {
@@ -205,15 +205,18 @@ export function GamePage() {
       .select('id, player_id, room_id, token_key, created_at')
       .single();
     if (!error && data) {
-      // Optimistic update (realtime will also fire and deduplicate)
       setReminderTokens((prev) => [...prev, data as ReminderToken]);
+      void recordReminderAdded(roomId, room.phase, tokenKey, selectedId, allPlayers);
     }
   };
 
   const handleRemoveToken = async (tokenId: string) => {
-    // Optimistic remove
+    const token = reminderTokens.find((t) => t.id === tokenId);
     setReminderTokens((prev) => prev.filter((t) => t.id !== tokenId));
     await supabase.from('reminder_tokens').delete().eq('id', tokenId);
+    if (token && room) {
+      void recordReminderRemoved(roomId, room.phase, token.token_key, token.player_id, allPlayers);
+    }
   };
 
   const handleEndGame = async (outcome: 'good' | 'evil' | 'cancelled') => {

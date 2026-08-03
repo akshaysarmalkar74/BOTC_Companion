@@ -2,9 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { loadSession } from '../lib/roomUtils';
-import { recordNomination, recordExecution, recordDayNote } from '../lib/gameHistory';
+import { recordNomination, recordExecution, recordDayNote, recordEvent } from '../lib/gameHistory';
 import { PlayerDetailPanel } from '../components/PlayerDetailPanel';
 import { TROUBLE_BREWING } from '../data/troubleBrewing';
+import { checkVirgin, checkSaint, checkSlayer, checkMayor } from '../engine/dayEngine';
+import type { DayAbilityResult } from '../engine/dayEngine';
+import type { GameState } from '../engine/types';
 import type { Player, Room, ReminderToken, DayEvent, DayNote } from '../types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -60,6 +63,9 @@ export function DayAssistantPage() {
   const [selectedId, setSelectedId]         = useState<string | null>(null);
   const [showHistory, setShowHistory]       = useState(false);
   const [loading, setLoading]               = useState(true);
+  const [dayAbilityBanners, setDayAbilityBanners] = useState<DayAbilityResult[]>([]);
+  const [slayerPlayerId, setSlayerPlayerId] = useState('');
+  const [slayerTargetId, setSlayerTargetId] = useState('');
   const navigate = useNavigate();
 
   const session = loadSession();
@@ -190,6 +196,26 @@ export function DayAssistantPage() {
   const selectedTokens    = selectedId
     ? reminderTokens.filter((t) => t.player_id === selectedId) : [];
 
+  // ── Day engine helpers ────────────────────────────────────────────────────
+
+  function buildGameState(currentPlayers: Player[], currentTokens: ReminderToken[]): GameState {
+    return {
+      roomId,
+      players: currentPlayers,
+      reminderTokens: currentTokens,
+      nightNumber: dayNumber, // approximate; day engine doesn't need exact night number
+      script: Array.isArray(room?.script) ? (room!.script as string[]) : [],
+    };
+  }
+
+  function addBanner(result: DayAbilityResult) {
+    setDayAbilityBanners((prev) => [...prev, result]);
+  }
+
+  function dismissBanner(index: number) {
+    setDayAbilityBanners((prev) => prev.filter((_, i) => i !== index));
+  }
+
   // ── Actions ───────────────────────────────────────────────────────────────
 
   const handleRecordNomination = async () => {
@@ -206,6 +232,21 @@ export function DayAssistantPage() {
       .single();
     if (data) setAllDayEvents((prev) => [...prev, data as DayEvent]);
     void recordNomination(room.id, room.phase, nominatorId, nomineeId, players);
+
+    // Check Virgin ability
+    const gs = buildGameState(players, reminderTokens);
+    const virginResult = checkVirgin(gs, nomineeId, nominatorId);
+    if (virginResult) {
+      addBanner(virginResult);
+      void recordEvent({
+        roomId: room.id, phase: room.phase,
+        type: 'player_death',
+        description: virginResult.message,
+        playerIds: virginResult.affectedPlayerIds,
+        metadata: { abilityType: virginResult.type },
+      });
+    }
+
     setNominatorId('');
     setNomineeId('');
   };
@@ -226,9 +267,88 @@ export function DayAssistantPage() {
       supabase.from('players').update({ is_alive: false }).eq('id', executeId),
     ]);
     if (eventData) setAllDayEvents((prev) => [...prev, eventData as DayEvent]);
-    setPlayers((prev) => prev.map((p) => p.id === executeId ? { ...p, is_alive: false } : p));
+    const updatedPlayers = players.map((p) => p.id === executeId ? { ...p, is_alive: false } : p);
+    setPlayers(updatedPlayers);
     void recordExecution(room.id, room.phase, executeId, players);
+
+    // Check Saint ability
+    const gs = buildGameState(updatedPlayers, reminderTokens);
+    const saintResult = checkSaint(gs, executeId);
+    if (saintResult) {
+      addBanner(saintResult);
+      void recordEvent({
+        roomId: room.id, phase: room.phase,
+        type: 'game_end',
+        description: saintResult.message,
+        playerIds: saintResult.affectedPlayerIds,
+        metadata: { abilityType: saintResult.type, outcome: 'evil' },
+      });
+    }
+
     setExecuteId('');
+  };
+
+  const handleSlayer = async () => {
+    if (!slayerPlayerId || !slayerTargetId || !room) return;
+    const gs = buildGameState(players, reminderTokens);
+    const result = checkSlayer(gs, slayerPlayerId, slayerTargetId);
+    if (!result) return;
+
+    addBanner(result);
+
+    // Place the slayer-used token to mark once-per-game
+    if (result.type !== 'slayer-already-used') {
+      await supabase.from('reminder_tokens').insert({
+        player_id: slayerPlayerId,
+        room_id: room.id,
+        token_key: 'slayer-used',
+      });
+    }
+
+    // If hit, kill the Demon
+    if (result.type === 'slayer-hit') {
+      await supabase.from('players').update({ is_alive: false }).eq('id', slayerTargetId);
+      setPlayers((prev) => prev.map((p) => p.id === slayerTargetId ? { ...p, is_alive: false } : p));
+    }
+
+    void recordEvent({
+      roomId: room.id, phase: room.phase,
+      type: result.type === 'slayer-hit' ? 'player_death' : 'resolution_advisory',
+      description: result.message,
+      playerIds: result.affectedPlayerIds,
+      metadata: { abilityType: result.type },
+    });
+
+    setSlayerPlayerId('');
+    setSlayerTargetId('');
+  };
+
+  const handleCheckMayor = () => {
+    if (!room) return;
+    const phaseMatch2 = room.phase.match(/^(Night|Day) (\d+)$/);
+    const isDayPhase2 = phaseMatch2?.[1] === 'Day';
+    const dayNum2 = isDayPhase2 ? parseInt(phaseMatch2![2]) : parseInt(phaseMatch2?.[2] ?? '1') - 1;
+    const executionOccurred = allDayEvents.some((e) => e.day_number === dayNum2 && e.event_type === 'execution');
+    const gs = buildGameState(players, reminderTokens);
+    const result = checkMayor(gs, executionOccurred);
+    if (result) {
+      addBanner(result);
+      void recordEvent({
+        roomId: room.id, phase: room.phase,
+        type: 'game_end',
+        description: result.message,
+        playerIds: result.affectedPlayerIds,
+        metadata: { abilityType: result.type, outcome: 'good' },
+      });
+    } else {
+      addBanner({
+        type: 'mayor-win',
+        message: 'Mayor win condition not met — either fewer/more than 3 players alive, an execution occurred, or Mayor is absent/poisoned.',
+        affectedPlayerIds: [],
+        isStateChange: false,
+        requiresConfirmation: true,
+      });
+    }
   };
 
   const handleSaveNotes = async () => {
@@ -338,6 +458,17 @@ export function DayAssistantPage() {
         ))}
       </div>
 
+      {/* ── Day ability banners ── */}
+      {dayAbilityBanners.map((banner, i) => (
+        <div
+          key={i}
+          className={`day-ability-banner ${banner.isStateChange ? 'day-ability-banner--state-change' : 'day-ability-banner--advisory'}`}
+        >
+          <span className="day-ability-banner-msg">{banner.message}</span>
+          <button className="day-ability-banner-dismiss" onClick={() => dismissBanner(i)}>×</button>
+        </div>
+      ))}
+
       <main className="day-content">
 
         {/* ── Player status ── */}
@@ -426,6 +557,63 @@ export function DayAssistantPage() {
                 Execute
               </button>
             </div>
+          </section>
+        )}
+
+        {/* ── Slayer action (active day only, if Slayer in game) ── */}
+        {isDayPhase && players.some((p) => p.role === 'slayer' && p.is_alive) && (
+          <section className="day-section">
+            <h3 className="day-section-title">Slayer Action</h3>
+            <p className="day-section-hint">
+              Slayer publicly declares a target. If the target is the Demon, they die.
+              Once per game only.
+            </p>
+            <div className="day-row">
+              <select
+                className="day-select"
+                value={slayerPlayerId}
+                onChange={(e) => setSlayerPlayerId(e.target.value)}
+              >
+                <option value="">Slayer is…</option>
+                {players.filter((p) => p.role === 'slayer' && p.is_alive).map((p) => (
+                  <option key={p.id} value={p.id}>{p.display_name}</option>
+                ))}
+              </select>
+              <span className="day-arrow">→</span>
+              <select
+                className="day-select"
+                value={slayerTargetId}
+                onChange={(e) => setSlayerTargetId(e.target.value)}
+              >
+                <option value="">Target…</option>
+                {players.filter((p) => p.is_alive).map((p) => (
+                  <option key={p.id} value={p.id}>{p.display_name}</option>
+                ))}
+              </select>
+              <button
+                className="btn btn-secondary day-action-btn"
+                onClick={handleSlayer}
+                disabled={!slayerPlayerId || !slayerTargetId}
+              >
+                Slay
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* ── Mayor check (active day only) ── */}
+        {isDayPhase && players.some((p) => p.role === 'mayor' && p.is_alive) && (
+          <section className="day-section">
+            <h3 className="day-section-title">Mayor Win Check</h3>
+            <p className="day-section-hint">
+              Check if Mayor win condition is met (3 alive, no execution this day).
+            </p>
+            <button
+              className="btn btn-secondary day-action-btn"
+              onClick={handleCheckMayor}
+            >
+              Check Mayor Condition
+            </button>
           </section>
         )}
 

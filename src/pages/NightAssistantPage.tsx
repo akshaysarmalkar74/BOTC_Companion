@@ -82,8 +82,23 @@ export function NightAssistantPage() {
         ]);
 
       const loadedPlayers  = (playerData  ?? []) as Player[];
-      const loadedTokens   = (tokenData   ?? []) as ReminderToken[];
+      let   loadedTokens   = (tokenData   ?? []) as ReminderToken[];
       const loadedActions  = (actionData  ?? []) as NightAction[];
+
+      // ── Ephemeral token cleanup (nights 2+) ───────────────────────────────
+      // Poisoner-poisoned and Monk-protected tokens are valid for one night only.
+      // If the role is dead or skipped their step, these tokens persist until now.
+      // Clear them at the start of each new night to prevent stale state.
+      if (!isFirst) {
+        const ephemeralKeys = ['poisoner-poisoned', 'monk-protected'];
+        const staleTokenIds = loadedTokens
+          .filter((t) => ephemeralKeys.includes(t.token_key))
+          .map((t) => t.id);
+        if (staleTokenIds.length > 0) {
+          await supabase.from('reminder_tokens').delete().in('id', staleTokenIds);
+          loadedTokens = loadedTokens.filter((t) => !ephemeralKeys.includes(t.token_key));
+        }
+      }
 
       setPlayers(loadedPlayers);
       setReminderTokens(loadedTokens);

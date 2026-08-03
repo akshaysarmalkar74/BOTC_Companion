@@ -8,6 +8,8 @@
 
 import type { PipelineContext, ValidationWarning } from './types';
 import { TROUBLE_BREWING } from '../data/troubleBrewing';
+import { NIGHT_STEPS } from '../data/nightOrder';
+import { hasToken } from './stateEngine';
 
 export function stageValidate(ctx: PipelineContext): PipelineContext {
   const { state, actions, resolution } = ctx;
@@ -67,19 +69,6 @@ export function stageValidate(ctx: PipelineContext): PipelineContext {
     }
   }
 
-  // ── Monk targeting themselves ──────────────────────────────────────────────
-  const monkAction = actions['monk'];
-  if (monkAction?.target_ids.length > 0) {
-    const monk = state.players.find((p) => p.role === 'monk');
-    if (monk && monkAction.target_ids[0] === monk.id) {
-      warnings.push({
-        type: 'monk-self-target',
-        message: `Monk cannot protect themselves. Their action targets themselves, which is illegal.`,
-        severity: 'error',
-      });
-    }
-  }
-
   // ── Imp action on Night 1 ──────────────────────────────────────────────────
   if (state.nightNumber === 1 && actions['imp']) {
     warnings.push({
@@ -96,6 +85,71 @@ export function stageValidate(ctx: PipelineContext): PipelineContext {
       message: `No script has been set for this game.`,
       severity: 'warning',
     });
+  }
+
+  // ── Data-driven targeting rule validation ─────────────────────────────────
+  const STEP_BY_KEY = new Map(NIGHT_STEPS.map((s) => [s.key, s]));
+
+  for (const [stepKey, action] of Object.entries(actions)) {
+    if (action.target_ids.length === 0) continue;
+    const step = STEP_BY_KEY.get(stepKey);
+    if (!step || !step.characterId) continue;
+
+    const actorPlayer = state.players.find((p) => p.role === step.characterId);
+    if (!actorPlayer) continue;
+
+    // Self-target check (data-driven)
+    if (step.selfAllowed === false) {
+      for (const targetId of action.target_ids) {
+        if (targetId === actorPlayer.id) {
+          const char = TROUBLE_BREWING.find((c) => c.id === step.characterId);
+          warnings.push({
+            type: `${stepKey}-self-target`,
+            message: `${char?.name ?? step.characterId} cannot target themselves. Their action targets themselves, which is illegal.`,
+            severity: 'error',
+          });
+        }
+      }
+    }
+
+    // Dead target check
+    if (step.deadAllowed === false) {
+      for (const targetId of action.target_ids) {
+        const target = state.players.find((p) => p.id === targetId);
+        if (target && !target.is_alive) {
+          const char = TROUBLE_BREWING.find((c) => c.id === step.characterId);
+          warnings.push({
+            type: `${stepKey}-dead-target`,
+            message: `${char?.name ?? step.characterId} cannot target dead players. "${target.display_name}" is dead.`,
+            severity: 'warning',
+          });
+        }
+      }
+    }
+
+    // Distinct targets check
+    if ((step.targetsMustDiffer ?? (step.targetCount === 2)) && action.target_ids.length === 2) {
+      if (action.target_ids[0] === action.target_ids[1]) {
+        const char = TROUBLE_BREWING.find((c) => c.id === step.characterId);
+        warnings.push({
+          type: `${stepKey}-duplicate-targets`,
+          message: `${char?.name ?? step.characterId} must choose 2 different players, but the same player was chosen twice.`,
+          severity: 'error',
+        });
+      }
+    }
+
+    // Once-per-game check
+    if (step.oncePerGameToken) {
+      if (hasToken(state, actorPlayer.id, step.oncePerGameToken)) {
+        const char = TROUBLE_BREWING.find((c) => c.id === step.characterId);
+        warnings.push({
+          type: `${stepKey}-already-used`,
+          message: `${char?.name ?? step.characterId}'s ability has already been used (once per game). Token "${step.oncePerGameToken}" is present.`,
+          severity: 'warning',
+        });
+      }
+    }
   }
 
   return {

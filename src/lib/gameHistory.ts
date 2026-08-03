@@ -316,6 +316,42 @@ export async function recordDayNote(
   });
 }
 
+// ── Reminder tokens ───────────────────────────────────────────────────────────
+
+export async function recordReminderAdded(
+  roomId: string,
+  phase: string,
+  tokenKey: string,
+  playerId: string,
+  players: Player[],
+): Promise<void> {
+  const name = players.find((p) => p.id === playerId)?.display_name ?? playerId;
+  await recordEvent({
+    roomId, phase,
+    type:        'reminder_added',
+    description: `Reminder token "${tokenKey}" placed on ${name}.`,
+    playerIds:   [playerId],
+    metadata:    { tokenKey, playerId },
+  });
+}
+
+export async function recordReminderRemoved(
+  roomId: string,
+  phase: string,
+  tokenKey: string,
+  playerId: string,
+  players: Player[],
+): Promise<void> {
+  const name = players.find((p) => p.id === playerId)?.display_name ?? playerId;
+  await recordEvent({
+    roomId, phase,
+    type:        'reminder_removed',
+    description: `Reminder token "${tokenKey}" removed from ${name}.`,
+    playerIds:   [playerId],
+    metadata:    { tokenKey, playerId },
+  });
+}
+
 // ── Game end ──────────────────────────────────────────────────────────────────
 
 export async function recordGameEnd(

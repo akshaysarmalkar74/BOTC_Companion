@@ -16,7 +16,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { loadSession } from '../lib/roomUtils';
-import { recordNightResolution } from '../lib/gameHistory';
+import { recordNightResolution, recordEvent } from '../lib/gameHistory';
 import { resolveNight, buildActionMap } from '../engine/pipeline';
 import { TROUBLE_BREWING } from '../data/troubleBrewing';
 import { getNightNumber } from '../data/nightOrder';
@@ -50,6 +50,7 @@ export function NightResolutionPage() {
   const [actionMap, setActionMap]           = useState<NightActionMap>({});
   const [overriddenDeaths, setOverriddenDeaths] = useState<Set<string>>(new Set());
   const [roleOverrides, setRoleOverrides]   = useState<Map<string, string>>(new Map());
+  const [infoOverrideIndexes, setInfoOverrideIndexes] = useState<Set<number>>(new Set());
   const [loading, setLoading]               = useState(true);
   const [saving, setSaving]                 = useState(false);
   const [committed, setCommitted]           = useState(false);
@@ -170,6 +171,15 @@ export function NightResolutionPage() {
     });
   }, []);
 
+  const toggleInfoOverride = useCallback((index: number) => {
+    setInfoOverrideIndexes((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  }, []);
+
   // ── Commit ────────────────────────────────────────────────────────────
 
   async function handleCommit() {
@@ -211,6 +221,22 @@ export function NightResolutionPage() {
           committedRoleChanges: roleOverrides,
           players,
         });
+
+        // Record ST overrides for info suggestions
+        for (const idx of infoOverrideIndexes) {
+          const suggestion = resolution.infoSuggestions[idx];
+          if (!suggestion) continue;
+          const char = TROUBLE_BREWING.find((c) => c.id === suggestion.characterId);
+          const player = players.find((p) => p.id === suggestion.playerId);
+          void recordEvent({
+            roomId,
+            phase: room.phase,
+            type: 'st_override',
+            description: `Storyteller gave different information to ${char?.name ?? suggestion.characterId} (${player?.display_name ?? suggestion.playerId}). Engine suggested: "${suggestion.suggestion}"`,
+            playerIds: [suggestion.playerId],
+            metadata: { field: 'infoSuggestion', characterId: suggestion.characterId, engineSuggested: suggestion.suggestion, stChoice: 'different' },
+          });
+        }
       }
 
       // Advance to day phase
@@ -380,19 +406,28 @@ export function NightResolutionPage() {
             <h3 className="resolve-section-title">Information to Give</h3>
             <div className="resolve-info-list">
               {resolution.infoSuggestions.map((s, i) => {
-                const char   = TROUBLE_BREWING.find((c) => c.id === s.characterId);
-                const player = players.find((p) => p.id === s.playerId);
+                const char       = TROUBLE_BREWING.find((c) => c.id === s.characterId);
+                const player     = players.find((p) => p.id === s.playerId);
+                const overridden = infoOverrideIndexes.has(i);
                 return (
                   <div
                     key={i}
                     className={[
                       'resolve-info-item',
                       !s.abilityWorking && 'resolve-info-item--impaired',
+                      overridden        && 'resolve-info-item--overridden',
                     ].filter(Boolean).join(' ')}
                   >
                     <span className="resolve-info-char">{char?.name ?? s.characterId}</span>
                     <span className="resolve-info-player">({player?.display_name ?? s.playerId})</span>
                     <span className="resolve-info-suggestion">{s.suggestion}</span>
+                    <button
+                      className={`resolve-info-override-btn${overridden ? ' active' : ''}`}
+                      onClick={() => toggleInfoOverride(i)}
+                      title="Mark that you gave different information"
+                    >
+                      {overridden ? 'Override ✓' : 'I gave different info'}
+                    </button>
                   </div>
                 );
               })}

@@ -35,6 +35,29 @@ export interface NightStepDef {
    * if it doesn't apply (e.g. Undertaker only acts if someone was executed).
    */
   conditional: boolean;
+
+  // ── Targeting rules ─────────────────────────────────────────────────────
+  /**
+   * Whether the acting character may target themselves.
+   * Defaults to false. Imp is the only TB character that may self-target.
+   */
+  selfAllowed?: boolean;
+  /**
+   * Whether dead players are valid targets.
+   * Defaults to false. Ravenkeeper's choice allows dead targets.
+   */
+  deadAllowed?: boolean;
+  /**
+   * When targetCount === 2, both selected players must be different.
+   * Defaults to true when targetCount === 2.
+   * Fortune Teller, Washerwoman, Librarian, Investigator all require 2 distinct players.
+   */
+  targetsMustDiffer?: boolean;
+  /**
+   * Token key that marks "this ability has been used" for once-per-game enforcement.
+   * If the acting player has this token, the engine emits a validation warning.
+   */
+  oncePerGameToken?: string;
 }
 
 // ── Official Trouble Brewing night steps ────────────────────────────────────
@@ -80,6 +103,8 @@ export const NIGHT_STEPS: NightStepDef[] = [
     autoReminders: [{ tokenKey: 'poisoner-poisoned', targetIndex: 0 }],
     skipWhenDead: true,
     conditional: false,
+    selfAllowed: true,    // Poisoner may poison themselves (unusual but allowed)
+    deadAllowed: false,
   },
   {
     key: 'washerwoman',
@@ -97,6 +122,9 @@ export const NIGHT_STEPS: NightStepDef[] = [
     ],
     skipWhenDead: true,
     conditional: false,
+    selfAllowed: false,
+    deadAllowed: false,
+    targetsMustDiffer: true,
   },
   {
     key: 'librarian',
@@ -114,6 +142,9 @@ export const NIGHT_STEPS: NightStepDef[] = [
     ],
     skipWhenDead: true,
     conditional: false,
+    selfAllowed: false,
+    deadAllowed: false,
+    targetsMustDiffer: true,
   },
   {
     key: 'investigator',
@@ -131,6 +162,9 @@ export const NIGHT_STEPS: NightStepDef[] = [
     ],
     skipWhenDead: true,
     conditional: false,
+    selfAllowed: false,
+    deadAllowed: false,
+    targetsMustDiffer: true,
   },
   {
     key: 'chef',
@@ -172,6 +206,9 @@ export const NIGHT_STEPS: NightStepDef[] = [
     autoReminders: [],
     skipWhenDead: true,
     conditional: false,
+    selfAllowed: false,
+    deadAllowed: false,
+    targetsMustDiffer: true,
   },
   {
     key: 'butler',
@@ -186,6 +223,8 @@ export const NIGHT_STEPS: NightStepDef[] = [
     autoReminders: [{ tokenKey: 'butler-master', targetIndex: 0 }],
     skipWhenDead: true,
     conditional: false,
+    selfAllowed: false,  // Butler cannot choose themselves as master
+    deadAllowed: false,
   },
   {
     key: 'spy',
@@ -212,6 +251,8 @@ export const NIGHT_STEPS: NightStepDef[] = [
     autoReminders: [{ tokenKey: 'monk-protected', targetIndex: 0 }],
     skipWhenDead: true,
     conditional: false,
+    selfAllowed: false,  // Monk cannot protect themselves
+    deadAllowed: false,
   },
   {
     key: 'scarlet-woman',
@@ -239,6 +280,8 @@ export const NIGHT_STEPS: NightStepDef[] = [
     autoReminders: [],
     skipWhenDead: true,
     conditional: false,
+    selfAllowed: true,   // Imp can choose themselves (self-star)
+    deadAllowed: false,
   },
   {
     key: 'ravenkeeper',
@@ -252,6 +295,8 @@ export const NIGHT_STEPS: NightStepDef[] = [
     autoReminders: [],
     skipWhenDead: false, // wakes specifically when dead
     conditional: true,
+    selfAllowed: false,
+    deadAllowed: true,   // Ravenkeeper may choose dead players
   },
   {
     key: 'undertaker',
@@ -265,6 +310,8 @@ export const NIGHT_STEPS: NightStepDef[] = [
     autoReminders: [{ tokenKey: 'undertaker-investigated', targetIndex: 0 }],
     skipWhenDead: true,
     conditional: true,
+    selfAllowed: false,
+    deadAllowed: true,   // Undertaker target is necessarily the dead executed player
   },
 ];
 
