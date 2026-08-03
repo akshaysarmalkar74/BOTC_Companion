@@ -266,12 +266,22 @@ export function NightAssistantPage() {
           <p className="night-complete-sub">
             All {activeSteps.length} step{activeSteps.length !== 1 ? 's' : ''} recorded.
           </p>
-          <button className="btn btn-primary night-complete-btn" onClick={handleStartDay}>
-            Start Day {nightNumber}
+          <button
+            className="btn btn-primary night-complete-btn"
+            onClick={() => navigate('/resolve')}
+          >
+            Resolve Night {nightNumber} →
           </button>
           <button
             className="btn btn-secondary"
             style={{ marginTop: 10 }}
+            onClick={handleStartDay}
+          >
+            Skip Resolution · Start Day {nightNumber}
+          </button>
+          <button
+            className="btn btn-secondary"
+            style={{ marginTop: 8 }}
             onClick={() => navigate('/game')}
           >
             Back to Grimoire

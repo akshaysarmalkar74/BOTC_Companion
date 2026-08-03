@@ -9,6 +9,7 @@ import { RoleAssignmentPage } from './pages/RoleAssignmentPage';
 import { GamePage } from './pages/GamePage';
 import { NightAssistantPage } from './pages/NightAssistantPage';
 import { DayAssistantPage } from './pages/DayAssistantPage';
+import { NightResolutionPage } from './pages/NightResolutionPage';
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/assign" element={<RoleAssignmentPage />} />
         <Route path="/game" element={<GamePage />} />
         <Route path="/night" element={<NightAssistantPage />} />
+        <Route path="/resolve" element={<NightResolutionPage />} />
         <Route path="/day" element={<DayAssistantPage />} />
       </Routes>
     </BrowserRouter>
