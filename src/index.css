@@ -2086,6 +2086,88 @@ button, select, input, textarea {
   border-color: var(--accent);
 }
 
+/* ── Demon bluffs ── */
+
+.step-bluff-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.step-bluff-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--accent-dim);
+  border: 1px solid rgba(235, 94, 40, 0.25);
+  border-radius: var(--radius-sm);
+}
+
+.step-bluff-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--accent);
+  margin-right: 2px;
+}
+
+.step-bluff-chip {
+  background: var(--accent);
+  color: #FFFCF2;
+  border-radius: var(--radius-xs);
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.team-color-townsfolk { color: var(--team-townsfolk); }
+.team-color-outsider  { color: var(--team-outsider); }
+.team-color-minion    { color: var(--team-minion); }
+.team-color-demon     { color: var(--team-demon); }
+
+/* ── Role reveal picker (Washerwoman / Librarian / Investigator) ── */
+
+.step-role-reveal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.step-role-reveal-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.step-role-chip {
+  background: var(--surface-high);
+  border: 1.5px solid var(--border-mid);
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.step-role-chip:hover {
+  border-color: rgba(235, 94, 40, 0.5);
+  color: var(--text);
+}
+
+.step-role-chip.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
 /* ── Navigation bar (fixed bottom) ── */
 
 .night-nav {

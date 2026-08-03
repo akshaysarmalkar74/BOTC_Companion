@@ -58,6 +58,17 @@ export interface NightStepDef {
    * If the acting player has this token, the engine emits a validation warning.
    */
   oncePerGameToken?: string;
+
+  /**
+   * When set, show a role-picker for this alignment so the ST can record
+   * which role token they showed to the player (Washerwoman / Librarian / Investigator).
+   */
+  roleRevealTeam?: 'townsfolk' | 'outsider' | 'minion';
+
+  /**
+   * Mark the Demon Info step so the UI shows the bluff role picker (3 roles not in play).
+   */
+  isDemonInfo?: boolean;
 }
 
 // ── Official Trouble Brewing night steps ────────────────────────────────────
@@ -89,6 +100,7 @@ export const NIGHT_STEPS: NightStepDef[] = [
     autoReminders: [],
     skipWhenDead: false,
     conditional: false,
+    isDemonInfo: true,
   },
   // ── Characters ──────────────────────────────────────────────────────
   {
@@ -125,6 +137,7 @@ export const NIGHT_STEPS: NightStepDef[] = [
     selfAllowed: false,
     deadAllowed: false,
     targetsMustDiffer: true,
+    roleRevealTeam: 'townsfolk',
   },
   {
     key: 'librarian',
@@ -145,6 +158,7 @@ export const NIGHT_STEPS: NightStepDef[] = [
     selfAllowed: false,
     deadAllowed: false,
     targetsMustDiffer: true,
+    roleRevealTeam: 'outsider',
   },
   {
     key: 'investigator',
@@ -165,6 +179,7 @@ export const NIGHT_STEPS: NightStepDef[] = [
     selfAllowed: false,
     deadAllowed: false,
     targetsMustDiffer: true,
+    roleRevealTeam: 'minion',
   },
   {
     key: 'chef',

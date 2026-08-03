@@ -26,6 +26,8 @@ export function NightAssistantPage() {
   const [currentIndex, setCurrentIndex]     = useState(0);
   const [localTargets, setLocalTargets]     = useState<string[]>([]);
   const [localNotes, setLocalNotes]         = useState('');
+  const [localBluffs, setLocalBluffs]       = useState<string[]>([]);
+  const [localRoleId, setLocalRoleId]       = useState('');
   const [showProgress, setShowProgress]     = useState(false);
   const [saving, setSaving]                 = useState(false);
   const [loading, setLoading]               = useState(true);
@@ -117,7 +119,16 @@ export function NightAssistantPage() {
           setCurrentIndex(idx);
           const saved = loadedActions.find((a) => a.step_key === r.night_step_key);
           setLocalTargets(saved?.target_ids ?? []);
-          setLocalNotes(saved?.notes ?? '');
+          if (saved?.notes) {
+            try {
+              const parsed = JSON.parse(saved.notes);
+              setLocalNotes(parsed.text ?? '');
+              setLocalBluffs(parsed.bluffs ?? []);
+              setLocalRoleId(parsed.roleId ?? '');
+            } catch {
+              setLocalNotes(saved.notes);
+            }
+          }
         }
       }
 
@@ -135,7 +146,22 @@ export function NightAssistantPage() {
   function loadStepState(stepKey: string) {
     const saved = nightActions.find((a) => a.step_key === stepKey);
     setLocalTargets(saved?.target_ids ?? []);
-    setLocalNotes(saved?.notes ?? '');
+    if (saved?.notes) {
+      try {
+        const parsed = JSON.parse(saved.notes);
+        setLocalNotes(parsed.text ?? '');
+        setLocalBluffs(parsed.bluffs ?? []);
+        setLocalRoleId(parsed.roleId ?? '');
+      } catch {
+        setLocalNotes(saved.notes);
+        setLocalBluffs([]);
+        setLocalRoleId('');
+      }
+    } else {
+      setLocalNotes('');
+      setLocalBluffs([]);
+      setLocalRoleId('');
+    }
   }
 
   function handleToggleTarget(playerId: string, max: number) {
@@ -218,11 +244,23 @@ export function NightAssistantPage() {
 
   // ── Actions ───────────────────────────────────────────────────────────
 
+  function buildNotesPayload(step: NightStepDef): string {
+    if (step.isDemonInfo || step.roleRevealTeam) {
+      return JSON.stringify({
+        ...(step.isDemonInfo && { bluffs: localBluffs }),
+        ...(step.roleRevealTeam && { roleId: localRoleId }),
+        ...(localNotes && { text: localNotes }),
+      });
+    }
+    return localNotes;
+  }
+
   async function handleDone() {
     if (!currentStep || saving) return;
     setSaving(true);
     try {
-      await saveAction(currentStep, localTargets, localNotes);
+      const notesPayload = buildNotesPayload(currentStep);
+      await saveAction(currentStep, localTargets, notesPayload);
       if (currentStep.autoReminders.length > 0) {
         await placeAutoReminders(currentStep, localTargets);
       }
@@ -314,6 +352,21 @@ export function NightAssistantPage() {
   const charPlayer = currentStep.characterId
     ? players.find((p) => p.role === currentStep.characterId) ?? null
     : null;
+
+  // Demon bluffs: roles in the script that are NOT assigned to any player
+  const assignedRoles = new Set(players.map((p) => p.role).filter(Boolean));
+  const scriptIds = room && Array.isArray(room.script) ? (room.script as string[]) : [];
+  const bluffPool = TROUBLE_BREWING.filter(
+    (c) => scriptIds.includes(c.id) && !assignedRoles.has(c.id)
+  );
+
+  // Role reveal: all roles of the required team present in the script
+  const roleRevealPool = currentStep.roleRevealTeam
+    ? TROUBLE_BREWING.filter(
+        (c) => c.team === currentStep.roleRevealTeam && scriptIds.includes(c.id)
+      )
+    : [];
+
   const doneLabel = saving
     ? '…'
     : currentIndex === activeSteps.length - 1
@@ -435,6 +488,78 @@ export function NightAssistantPage() {
                       {!p.is_alive && (
                         <span className="step-player-dead">†</span>
                       )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Demon bluffs */}
+          {currentStep.isDemonInfo && (
+            <div className="step-bluff-section">
+              <p className="step-select-hint">
+                Select 3 bluff roles to show the Demon
+                {localBluffs.length > 0 ? ` · ${localBluffs.length} / 3 selected` : ''}
+              </p>
+              <div className="step-player-grid">
+                {bluffPool.map((c) => {
+                  const sel = localBluffs.includes(c.id);
+                  const full = !sel && localBluffs.length >= 3;
+                  return (
+                    <button
+                      key={c.id}
+                      className={[
+                        'step-player-btn',
+                        sel  && 'is-selected',
+                        full && 'is-dimmed',
+                      ].filter(Boolean).join(' ')}
+                      onClick={() =>
+                        setLocalBluffs((prev) =>
+                          prev.includes(c.id)
+                            ? prev.filter((id) => id !== c.id)
+                            : prev.length < 3
+                            ? [...prev, c.id]
+                            : prev
+                        )
+                      }
+                    >
+                      <span className="step-player-name">{c.name}</span>
+                      <span className={`step-player-role team-color-${c.team}`}>{c.team}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {localBluffs.length === 3 && (
+                <div className="step-bluff-summary">
+                  <span className="step-bluff-label">Bluffs:</span>
+                  {localBluffs.map((id) => {
+                    const def = TROUBLE_BREWING.find((c) => c.id === id);
+                    return def ? (
+                      <span key={id} className="step-bluff-chip">{def.name}</span>
+                    ) : null;
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Role reveal (Washerwoman / Librarian / Investigator) */}
+          {currentStep.roleRevealTeam && roleRevealPool.length > 0 && (
+            <div className="step-role-reveal-section">
+              <p className="step-select-hint">
+                Which {currentStep.roleRevealTeam} role token are you showing?
+              </p>
+              <div className="step-role-reveal-grid">
+                {roleRevealPool.map((c) => {
+                  const sel = localRoleId === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      className={['step-role-chip', sel && 'is-selected'].filter(Boolean).join(' ')}
+                      onClick={() => setLocalRoleId(sel ? '' : c.id)}
+                    >
+                      {c.name}
                     </button>
                   );
                 })}
