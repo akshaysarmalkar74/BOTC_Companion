@@ -2086,6 +2086,159 @@ button, select, input, textarea {
   border-color: var(--accent);
 }
 
+/* ── Reveal overlay ── */
+
+.reveal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: #252422;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px calc(24px + var(--safe-b));
+  padding-top: max(32px, var(--safe-t));
+  overflow-y: auto;
+}
+
+.reveal-content {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+}
+
+.reveal-eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.reveal-title {
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: #FFFCF2;
+  line-height: 1.3;
+}
+
+.reveal-sub {
+  font-size: 0.9375rem;
+  color: #CCC5B9;
+  line-height: 1.5;
+  margin-top: -8px;
+}
+
+.reveal-role-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.reveal-role-card {
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  text-align: left;
+  border: 1px solid;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reveal-role-card--solo {
+  width: 100%;
+  max-width: 320px;
+  align-self: center;
+}
+
+.reveal-role-card--townsfolk {
+  background: rgba(90, 171, 240, 0.12);
+  border-color: rgba(90, 171, 240, 0.3);
+}
+.reveal-role-card--outsider {
+  background: rgba(90, 204, 152, 0.12);
+  border-color: rgba(90, 204, 152, 0.3);
+}
+.reveal-role-card--minion {
+  background: rgba(216, 136, 64, 0.12);
+  border-color: rgba(216, 136, 64, 0.3);
+}
+.reveal-role-card--demon {
+  background: rgba(224, 74, 74, 0.12);
+  border-color: rgba(224, 74, 74, 0.3);
+}
+
+.reveal-role-name {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #FFFCF2;
+}
+
+.reveal-role-team {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.reveal-role-card--townsfolk .reveal-role-team { color: var(--team-townsfolk); }
+.reveal-role-card--outsider  .reveal-role-team { color: var(--team-outsider); }
+.reveal-role-card--minion    .reveal-role-team { color: var(--team-minion); }
+.reveal-role-card--demon     .reveal-role-team { color: var(--team-demon); }
+
+.reveal-role-ability {
+  font-size: 0.875rem;
+  color: #CCC5B9;
+  line-height: 1.5;
+  margin-top: 2px;
+}
+
+.reveal-players {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.reveal-player-chip {
+  background: rgba(255, 252, 242, 0.08);
+  border: 1px solid rgba(255, 252, 242, 0.2);
+  border-radius: var(--radius-sm);
+  color: #FFFCF2;
+  font-size: 1.125rem;
+  font-weight: 700;
+  padding: 10px 20px;
+}
+
+.reveal-dismiss {
+  margin-top: 8px;
+  background: none;
+  border: 1px solid rgba(255, 252, 242, 0.2);
+  border-radius: var(--radius-sm);
+  color: rgba(255, 252, 242, 0.5);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  padding: 10px 24px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.reveal-dismiss:hover {
+  color: #FFFCF2;
+  border-color: rgba(255, 252, 242, 0.4);
+}
+
+.reveal-show-btn {
+  margin-top: 4px;
+}
+
 /* ── Demon bluffs ── */
 
 .step-bluff-section {

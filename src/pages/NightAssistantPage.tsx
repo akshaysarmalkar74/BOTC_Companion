@@ -28,6 +28,7 @@ export function NightAssistantPage() {
   const [localNotes, setLocalNotes]         = useState('');
   const [localBluffs, setLocalBluffs]       = useState<string[]>([]);
   const [localRoleId, setLocalRoleId]       = useState('');
+  const [showReveal, setShowReveal]         = useState(false);
   const [showProgress, setShowProgress]     = useState(false);
   const [saving, setSaving]                 = useState(false);
   const [loading, setLoading]               = useState(true);
@@ -144,6 +145,7 @@ export function NightAssistantPage() {
   const isComplete  = currentIndex >= activeSteps.length && activeSteps.length > 0;
 
   function loadStepState(stepKey: string) {
+    setShowReveal(false);
     const saved = nightActions.find((a) => a.step_key === stepKey);
     setLocalTargets(saved?.target_ids ?? []);
     if (saved?.notes) {
@@ -530,17 +532,15 @@ export function NightAssistantPage() {
                   );
                 })}
               </div>
-              {localBluffs.length === 3 && (
-                <div className="step-bluff-summary">
-                  <span className="step-bluff-label">Bluffs:</span>
-                  {localBluffs.map((id) => {
-                    const def = TROUBLE_BREWING.find((c) => c.id === id);
-                    return def ? (
-                      <span key={id} className="step-bluff-chip">{def.name}</span>
-                    ) : null;
-                  })}
-                </div>
-              )}
+              <button
+                className="btn btn-primary reveal-show-btn"
+                disabled={localBluffs.length < 3}
+                onClick={() => setShowReveal(true)}
+              >
+                {localBluffs.length < 3
+                  ? `Select ${3 - localBluffs.length} more role${3 - localBluffs.length !== 1 ? 's' : ''}`
+                  : 'Show Demon →'}
+              </button>
             </div>
           )}
 
@@ -564,6 +564,14 @@ export function NightAssistantPage() {
                   );
                 })}
               </div>
+              {localRoleId && (
+                <button
+                  className="btn btn-primary reveal-show-btn"
+                  onClick={() => setShowReveal(true)}
+                >
+                  Show {charPlayer?.display_name ?? 'Player'} →
+                </button>
+              )}
             </div>
           )}
 
@@ -583,6 +591,64 @@ export function NightAssistantPage() {
           </div>
         </div>
       </main>
+
+      {/* ── Reveal overlay ── */}
+      {showReveal && (() => {
+        const revealRoleDef = localRoleId ? TROUBLE_BREWING.find((c) => c.id === localRoleId) : null;
+        const revealPlayers = localTargets.map((id) => players.find((p) => p.id === id)).filter(Boolean) as typeof players;
+        return (
+          <div className="reveal-overlay" onClick={() => setShowReveal(false)}>
+            <div className="reveal-content" onClick={(e) => e.stopPropagation()}>
+
+              {/* Demon bluffs reveal */}
+              {currentStep.isDemonInfo && (
+                <>
+                  <p className="reveal-eyebrow">Your bluff roles</p>
+                  <h2 className="reveal-title">These roles are not in play</h2>
+                  <p className="reveal-sub">You may safely claim to be any of these characters.</p>
+                  <div className="reveal-role-list">
+                    {localBluffs.map((id) => {
+                      const def = TROUBLE_BREWING.find((c) => c.id === id);
+                      if (!def) return null;
+                      return (
+                        <div key={id} className={`reveal-role-card reveal-role-card--${def.team}`}>
+                          <span className="reveal-role-name">{def.name}</span>
+                          <span className="reveal-role-team">{TEAM_LABELS[def.team]}</span>
+                          <p className="reveal-role-ability">{def.ability}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {/* Washerwoman / Librarian / Investigator reveal */}
+              {currentStep.roleRevealTeam && revealRoleDef && (
+                <>
+                  <p className="reveal-eyebrow">Your information</p>
+                  <h2 className="reveal-title">
+                    One of these players is the {revealRoleDef.name}
+                  </h2>
+                  <div className="reveal-players">
+                    {revealPlayers.map((p) => (
+                      <div key={p.id} className="reveal-player-chip">{p.display_name}</div>
+                    ))}
+                  </div>
+                  <div className={`reveal-role-card reveal-role-card--${revealRoleDef.team} reveal-role-card--solo`}>
+                    <span className="reveal-role-name">{revealRoleDef.name}</span>
+                    <span className="reveal-role-team">{TEAM_LABELS[revealRoleDef.team]}</span>
+                    <p className="reveal-role-ability">{revealRoleDef.ability}</p>
+                  </div>
+                </>
+              )}
+
+              <button className="reveal-dismiss" onClick={() => setShowReveal(false)}>
+                Tap to dismiss
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Navigation ── */}
       <nav className="night-nav">
