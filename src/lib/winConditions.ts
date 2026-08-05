@@ -21,6 +21,12 @@ export interface WinDetection {
   reason: string;
 }
 
+export interface DemonPromotion {
+  /** ID of the Scarlet Woman player who inherits the Demon role */
+  playerId: string;
+  playerName: string;
+}
+
 /**
  * Evaluate automatic win conditions against the current player list.
  * Returns the first detected win, or null if the game continues.
@@ -57,6 +63,36 @@ export function detectWinCondition(players: Player[]): WinDetection | null {
   }
 
   return null;
+}
+
+/**
+ * Check whether the Scarlet Woman succession should fire.
+ * Call this BEFORE detectWinCondition whenever a Demon has just died —
+ * if it returns a promotion, show the promotion modal and skip the Good-win alert.
+ *
+ * Conditions (official rules):
+ *   - All demons are dead in the updated player list
+ *   - Scarlet Woman is alive
+ *   - ≥5 players remain alive (Demon's death is already reflected in players)
+ */
+export function detectScarletWomanPromotion(players: Player[]): DemonPromotion | null {
+  const alivePlayers = players.filter((p) => p.is_alive);
+
+  // Scarlet Woman must be alive
+  const sw = alivePlayers.find((p) => p.role === 'scarlet-woman');
+  if (!sw) return null;
+
+  // At least 5 players alive (including the SW herself)
+  if (alivePlayers.length < 5) return null;
+
+  // All demons must be dead (Imp is the only demon in TB)
+  const demonPlayers = players.filter((p) => {
+    const char = TROUBLE_BREWING.find((c) => c.id === p.role);
+    return char?.team === 'demon';
+  });
+  if (demonPlayers.length === 0 || !demonPlayers.every((p) => !p.is_alive)) return null;
+
+  return { playerId: sw.id, playerName: sw.display_name };
 }
 
 /**

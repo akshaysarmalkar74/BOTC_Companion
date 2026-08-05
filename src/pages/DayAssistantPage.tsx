@@ -8,7 +8,7 @@ import { TROUBLE_BREWING } from '../data/troubleBrewing';
 import { checkVirgin, checkSaint, checkSlayer, checkMayor } from '../engine/dayEngine';
 import type { DayAbilityResult } from '../engine/dayEngine';
 import type { GameState } from '../engine/types';
-import { detectWinCondition, detectSaintExecution, type WinDetection } from '../lib/winConditions';
+import { detectWinCondition, detectSaintExecution, detectScarletWomanPromotion, type WinDetection, type DemonPromotion } from '../lib/winConditions';
 import type { Player, Room, ReminderToken, DayEvent, DayNote } from '../types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -68,6 +68,7 @@ export function DayAssistantPage() {
   const [slayerPlayerId, setSlayerPlayerId] = useState('');
   const [slayerTargetId, setSlayerTargetId] = useState('');
   const [winAlert, setWinAlert]             = useState<WinDetection | null>(null);
+  const [demonPromotion, setDemonPromotion] = useState<DemonPromotion | null>(null);
   const [endingGame, setEndingGame]         = useState(false);
   const navigate = useNavigate();
 
@@ -288,10 +289,20 @@ export function DayAssistantPage() {
       });
     }
 
-    // Automatic win condition checks: Saint execution, Demon death, ≤2 alive
+    // Saint execution → immediate Evil win (overrides SW promotion)
     const saintWin = detectSaintExecution(players, executeId);
-    const autoWin  = saintWin ?? detectWinCondition(updatedPlayers);
-    if (autoWin) setWinAlert(autoWin);
+    if (saintWin) {
+      setWinAlert(saintWin);
+    } else {
+      // Check SW succession before declaring Good wins
+      const promotion = detectScarletWomanPromotion(updatedPlayers);
+      if (promotion) {
+        setDemonPromotion(promotion);
+      } else {
+        const autoWin = detectWinCondition(updatedPlayers);
+        if (autoWin) setWinAlert(autoWin);
+      }
+    }
 
     setExecuteId('');
   };
@@ -318,9 +329,14 @@ export function DayAssistantPage() {
       await supabase.from('players').update({ is_alive: false }).eq('id', slayerTargetId);
       const updatedPlayers = players.map((p) => p.id === slayerTargetId ? { ...p, is_alive: false } : p);
       setPlayers(updatedPlayers);
-      // Demon is dead — check for Good win
-      const win = detectWinCondition(updatedPlayers);
-      if (win) setWinAlert(win);
+      // Check SW succession before declaring Good wins
+      const promotion = detectScarletWomanPromotion(updatedPlayers);
+      if (promotion) {
+        setDemonPromotion(promotion);
+      } else {
+        const win = detectWinCondition(updatedPlayers);
+        if (win) setWinAlert(win);
+      }
     }
 
     void recordEvent({
@@ -361,6 +377,12 @@ export function DayAssistantPage() {
         requiresConfirmation: true,
       });
     }
+  };
+
+  const handlePromoteScarletWoman = async (swId: string) => {
+    await supabase.from('players').update({ role: 'imp' }).eq('id', swId);
+    setPlayers((prev) => prev.map((p) => p.id === swId ? { ...p, role: 'imp' } : p));
+    setDemonPromotion(null);
   };
 
   const handleEndGame = async (outcome: 'good' | 'evil' | 'cancelled') => {
@@ -530,7 +552,7 @@ export function DayAssistantPage() {
                 onChange={(e) => setNominatorId(e.target.value)}
               >
                 <option value="">Nominator…</option>
-                {players.map((p) => (
+                {players.filter((p) => p.is_alive).map((p) => (
                   <option key={p.id} value={p.id}>{p.display_name}</option>
                 ))}
               </select>
@@ -584,8 +606,9 @@ export function DayAssistantPage() {
           </section>
         )}
 
-        {/* ── Slayer action (active day only, if Slayer in game) ── */}
-        {isDayPhase && players.some((p) => p.role === 'slayer' && p.is_alive) && (
+        {/* ── Slayer action (active day only, if Slayer in game and ability not yet used) ── */}
+        {isDayPhase && players.some((p) => p.role === 'slayer' && p.is_alive) &&
+         !reminderTokens.some((t) => t.token_key === 'slayer-used') && (
           <section className="day-section">
             <h3 className="day-section-title">Slayer Action</h3>
             <p className="day-section-hint">
@@ -695,6 +718,37 @@ export function DayAssistantPage() {
           </section>
         )}
       </main>
+
+      {/* ── Scarlet Woman Demon Promotion ── */}
+      {demonPromotion && (
+        <div className="modal-overlay">
+          <div className="modal-card win-alert-modal">
+            <div className="win-alert-badge win-alert-badge--evil">Demon Succession</div>
+            <h2 className="modal-title">Scarlet Woman Rises</h2>
+            <p className="modal-subtitle win-alert-reason">
+              The Demon has died with 5+ players alive.{' '}
+              <strong>{demonPromotion.playerName}</strong> (Scarlet Woman) secretly becomes the new Demon.
+            </p>
+            <p className="win-alert-hint">
+              The game continues. Update her token and wake her tonight as the Imp.
+            </p>
+            <div className="end-game-options">
+              <button
+                className="btn end-game-btn end-game-evil"
+                onClick={() => void handlePromoteScarletWoman(demonPromotion.playerId)}
+              >
+                Promote {demonPromotion.playerName} → Imp
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setDemonPromotion(null)}
+              >
+                Handle Manually
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Win Condition Alert ── */}
       {winAlert && (

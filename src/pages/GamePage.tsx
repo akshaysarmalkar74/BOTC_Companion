@@ -7,7 +7,7 @@ import { GrimoireCircle } from '../components/GrimoireCircle';
 import { PlayerDetailPanel } from '../components/PlayerDetailPanel';
 import { TROUBLE_BREWING } from '../data/troubleBrewing';
 import { recordManualDeath, recordGameEnd, recordReminderAdded, recordReminderRemoved } from '../lib/gameHistory';
-import { detectWinCondition, type WinDetection } from '../lib/winConditions';
+import { detectWinCondition, detectScarletWomanPromotion, type WinDetection, type DemonPromotion } from '../lib/winConditions';
 import type { Player, Room, ReminderToken } from '../types';
 
 export function GamePage() {
@@ -21,6 +21,7 @@ export function GamePage() {
   const [showEndModal, setShowEndModal]     = useState(false);
   const [endingGame, setEndingGame]         = useState(false);
   const [winAlert, setWinAlert]             = useState<WinDetection | null>(null);
+  const [demonPromotion, setDemonPromotion] = useState<DemonPromotion | null>(null);
   const navigate = useNavigate();
 
   const session = loadSession();
@@ -179,10 +180,21 @@ export function GamePage() {
     // Record manual death (not resurrection) to history
     if (!newAlive && room) {
       void recordManualDeath(roomId, room.phase, targetId, allPlayers);
-      // Check win conditions after a player dies
-      const win = detectWinCondition(updatedPlayers);
-      if (win) setWinAlert(win);
+      // Scarlet Woman promotion takes priority over Good-wins check
+      const promotion = detectScarletWomanPromotion(updatedPlayers);
+      if (promotion) {
+        setDemonPromotion(promotion);
+      } else {
+        const win = detectWinCondition(updatedPlayers);
+        if (win) setWinAlert(win);
+      }
     }
+  };
+
+  const handlePromoteScarletWoman = async (swId: string) => {
+    await supabase.from('players').update({ role: 'imp' }).eq('id', swId);
+    setAllPlayers((prev) => prev.map((p) => p.id === swId ? { ...p, role: 'imp' } : p));
+    setDemonPromotion(null);
   };
 
   const handleToggleGhostVote = async (targetId: string) => {
@@ -356,6 +368,37 @@ export function GamePage() {
             onAddToken={handleAddToken}
             onRemoveToken={handleRemoveToken}
           />
+        )}
+
+        {/* Scarlet Woman Demon Promotion */}
+        {demonPromotion && (
+          <div className="modal-overlay">
+            <div className="modal-card win-alert-modal">
+              <div className="win-alert-badge win-alert-badge--evil">Demon Succession</div>
+              <h2 className="modal-title">Scarlet Woman Rises</h2>
+              <p className="modal-subtitle win-alert-reason">
+                The Demon has died with 5+ players alive.{' '}
+                <strong>{demonPromotion.playerName}</strong> (Scarlet Woman) secretly becomes the new Demon.
+              </p>
+              <p className="win-alert-hint">
+                The game continues. Update her token and wake her tonight as the Imp.
+              </p>
+              <div className="end-game-options">
+                <button
+                  className="btn end-game-btn end-game-evil"
+                  onClick={() => void handlePromoteScarletWoman(demonPromotion.playerId)}
+                >
+                  Promote {demonPromotion.playerName} → Imp
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setDemonPromotion(null)}
+                >
+                  Handle Manually
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Win Condition Alert */}
