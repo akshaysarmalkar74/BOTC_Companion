@@ -86,6 +86,24 @@ export function GamePage() {
     load();
   }, [roomId, playerId, isHost]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Realtime (non-host): redirect to /win when game ends ────────────
+  useEffect(() => {
+    if (isHost) return;
+
+    const ch = supabase.channel(`game-end-watch:${roomId}`);
+    ch.on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` },
+      (payload) => {
+        if ((payload.new as { status: string }).status === 'completed') {
+          navigate('/win');
+        }
+      }
+    ).subscribe();
+
+    return () => { ch.unsubscribe(); };
+  }, [roomId, isHost]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Realtime (host only) ────────────────────────────────────────────
   useEffect(() => {
     if (!isHost) return;
@@ -232,9 +250,8 @@ export function GamePage() {
       .update({ status: 'completed', outcome, ended_at: endedAt })
       .eq('id', roomId);
     void recordGameEnd(roomId, room.phase, outcome, allPlayers);
-    setRoom((prev) => prev ? { ...prev, status: 'completed', outcome, ended_at: endedAt } : prev);
-    setShowEndModal(false);
     setEndingGame(false);
+    navigate('/win');
   };
 
   const handleRematch = async () => {
@@ -290,41 +307,10 @@ export function GamePage() {
       ? reminderTokens.filter((t) => t.player_id === selectedId)
       : [];
 
-    // ── Completed state ─────────────────────────────────────────────
+    // If somehow the host lands back on /game after completion, redirect to /win
     if (room?.status === 'completed') {
-      const outcomeLabel =
-        room.outcome === 'good'    ? 'Good wins!'
-        : room.outcome === 'evil'  ? 'Evil wins!'
-        : 'Game cancelled.';
-      const outcomeClass =
-        room.outcome === 'good'    ? 'outcome-good'
-        : room.outcome === 'evil'  ? 'outcome-evil'
-        : 'outcome-cancelled';
-
-      return (
-        <div className="page centered">
-          <div className={`form-card game-over-card ${outcomeClass}`}>
-            <p className="game-over-eyebrow">Game Over</p>
-            <h1 className="game-over-title">{outcomeLabel}</h1>
-            <p className="game-over-room">Room {room.code}</p>
-            <div className="game-over-actions">
-              <button
-                className="btn btn-primary"
-                onClick={handleRematch}
-                disabled={rematchWorking}
-              >
-                {rematchWorking ? 'Setting up…' : 'Rematch'}
-              </button>
-              <button
-                className="btn btn-secondary"
-                onClick={() => navigate('/history')}
-              >
-                View History
-              </button>
-            </div>
-          </div>
-        </div>
-      );
+      navigate('/win');
+      return null;
     }
 
     return (

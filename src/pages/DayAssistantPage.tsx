@@ -677,6 +677,7 @@ export function DayAssistantPage() {
         <PlayerDetailPanel
           player={selectedPlayer}
           character={selectedCharacter}
+          drunkRoleChar={null}
           playerTokens={selectedTokens}
           onClose={() => setSelectedId(null)}
           onToggleAlive={handleToggleAlive}
