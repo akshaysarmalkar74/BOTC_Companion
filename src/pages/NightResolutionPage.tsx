@@ -20,6 +20,7 @@ import { recordNightResolution, recordEvent } from '../lib/gameHistory';
 import { resolveNight, buildActionMap } from '../engine/pipeline';
 import { TROUBLE_BREWING } from '../data/troubleBrewing';
 import { getNightNumber } from '../data/nightOrder';
+import { detectWinCondition, detectScarletWomanPromotion, type WinDetection, type DemonPromotion } from '../lib/winConditions';
 import type { Player, Room, ReminderToken, NightAction, DayEvent } from '../types';
 import type { NightResolution, ResolutionEvent, NightActionMap } from '../engine/types';
 
@@ -54,6 +55,9 @@ export function NightResolutionPage() {
   const [loading, setLoading]               = useState(true);
   const [saving, setSaving]                 = useState(false);
   const [committed, setCommitted]           = useState(false);
+  const [winAlert, setWinAlert]             = useState<WinDetection | null>(null);
+  const [demonPromotion, setDemonPromotion] = useState<DemonPromotion | null>(null);
+  const [endingGame, setEndingGame]         = useState(false);
   const navigate = useNavigate();
 
   const session = loadSession();
@@ -209,6 +213,24 @@ export function NightResolutionPage() {
 
       await Promise.all(ops);
 
+      // ── Win condition check after night deaths ────────────────────────
+      // Build the resulting player list reflecting committed deaths + role changes
+      const updatedPlayers = players.map((p) => {
+        let updated = { ...p };
+        if (overriddenDeaths.has(p.id))  updated = { ...updated, is_alive: false };
+        if (roleOverrides.has(p.id))     updated = { ...updated, role: roleOverrides.get(p.id)! };
+        return updated;
+      });
+
+      const promotion = detectScarletWomanPromotion(updatedPlayers);
+      if (promotion) {
+        setDemonPromotion(promotion);
+      } else {
+        const win = detectWinCondition(updatedPlayers);
+        if (win) setWinAlert(win);
+      }
+      // ─────────────────────────────────────────────────────────────────
+
       // Record history (fire-and-forget — never blocks commit)
       if (resolution) {
         void recordNightResolution({
@@ -250,6 +272,24 @@ export function NightResolutionPage() {
     } finally {
       setSaving(false);
     }
+  }
+
+  // ── Post-commit actions ───────────────────────────────────────────────
+
+  async function handleEndGame(outcome: 'good' | 'evil') {
+    if (!room) return;
+    setEndingGame(true);
+    await supabase
+      .from('rooms')
+      .update({ status: 'completed', outcome, ended_at: new Date().toISOString() })
+      .eq('id', roomId);
+    setEndingGame(false);
+    navigate('/win');
+  }
+
+  async function handlePromoteScarletWoman(swId: string) {
+    await supabase.from('players').update({ role: 'imp' }).eq('id', swId);
+    setDemonPromotion(null);
   }
 
   // ── Render ────────────────────────────────────────────────────────────
@@ -297,6 +337,62 @@ export function NightResolutionPage() {
             Go to Day {nightNum}
           </button>
         </div>
+
+        {/* Scarlet Woman Demon Promotion */}
+        {demonPromotion && (
+          <div className="modal-overlay">
+            <div className="modal-card win-alert-modal">
+              <div className="win-alert-badge win-alert-badge--evil">Demon Succession</div>
+              <h2 className="modal-title">Scarlet Woman Rises</h2>
+              <p className="modal-subtitle win-alert-reason">
+                The Demon has died with 5+ players alive.{' '}
+                <strong>{demonPromotion.playerName}</strong> (Scarlet Woman) secretly becomes the new Demon.
+              </p>
+              <p className="win-alert-hint">
+                The game continues. Update her token and wake her next night as the Imp.
+              </p>
+              <div className="end-game-options">
+                <button
+                  className="btn end-game-btn end-game-evil"
+                  onClick={() => void handlePromoteScarletWoman(demonPromotion.playerId)}
+                >
+                  Promote {demonPromotion.playerName} → Imp
+                </button>
+                <button className="btn btn-secondary" onClick={() => setDemonPromotion(null)}>
+                  Handle Manually
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Win Condition Alert */}
+        {winAlert && (
+          <div className="modal-overlay">
+            <div className="modal-card win-alert-modal">
+              <div className={`win-alert-badge win-alert-badge--${winAlert.outcome}`}>
+                {winAlert.outcome === 'good' ? 'Good Wins' : 'Evil Wins'}
+              </div>
+              <h2 className="modal-title">Win Condition Detected</h2>
+              <p className="modal-subtitle win-alert-reason">{winAlert.reason}</p>
+              <p className="win-alert-hint">
+                Confirm to end the game, or continue if this was triggered by error.
+              </p>
+              <div className="end-game-options">
+                <button
+                  className={`btn end-game-btn ${winAlert.outcome === 'good' ? 'end-game-good' : 'end-game-evil'}`}
+                  onClick={() => { setWinAlert(null); void handleEndGame(winAlert.outcome); }}
+                  disabled={endingGame}
+                >
+                  End Game — {winAlert.outcome === 'good' ? 'Good Wins' : 'Evil Wins'}
+                </button>
+                <button className="btn btn-secondary" onClick={() => setWinAlert(null)}>
+                  Continue Anyway
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
