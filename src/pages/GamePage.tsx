@@ -52,7 +52,7 @@ export function GamePage() {
           supabase
             .from('players')
             .select(
-              'id, display_name, seat_order, is_host, role, is_alive, ghost_vote_used, notes, room_id, created_at'
+              'id, display_name, seat_order, is_host, role, drunk_role, is_alive, ghost_vote_used, notes, room_id, created_at'
             )
             .eq('room_id', roomId)
             .eq('is_host', false)
@@ -69,11 +69,15 @@ export function GamePage() {
         // Players only fetch their own role — no other player data is read
         const { data: me } = await supabase
           .from('players')
-          .select('role')
+          .select('role, drunk_role')
           .eq('id', playerId)
           .single();
 
-        setMyRole(me?.role ?? null);
+        // If the player is the Drunk, show them their fake Townsfolk role —
+        // they must never know they are the Drunk.
+        const displayRole =
+          me?.role === 'drunk' && me?.drunk_role ? me.drunk_role : me?.role;
+        setMyRole(displayRole ?? null);
       }
 
       setLoading(false);
@@ -277,6 +281,11 @@ export function GamePage() {
     const selectedCharacter = selectedPlayer?.role
       ? (TROUBLE_BREWING.find((c) => c.id === selectedPlayer.role) ?? null)
       : null;
+    // The fake Townsfolk role the Drunk player thinks they have
+    const selectedDrunkRoleChar =
+      selectedPlayer?.role === 'drunk' && selectedPlayer.drunk_role
+        ? (TROUBLE_BREWING.find((c) => c.id === selectedPlayer.drunk_role) ?? null)
+        : null;
     const selectedPlayerTokens = selectedId
       ? reminderTokens.filter((t) => t.player_id === selectedId)
       : [];
@@ -375,6 +384,7 @@ export function GamePage() {
           <PlayerDetailPanel
             player={selectedPlayer}
             character={selectedCharacter}
+            drunkRoleChar={selectedDrunkRoleChar}
             playerTokens={selectedPlayerTokens}
             onClose={() => setSelectedId(null)}
             onToggleAlive={handleToggleAlive}

@@ -99,6 +99,11 @@ export function GrimoireCircle({
           const character = player.role
             ? (TROUBLE_BREWING.find((c) => c.id === player.role) ?? null)
             : null;
+          // For the Drunk: the fake Townsfolk role they think they have
+          const drunkRoleChar =
+            player.role === 'drunk' && player.drunk_role
+              ? (TROUBLE_BREWING.find((c) => c.id === player.drunk_role) ?? null)
+              : null;
 
           // Resolve this player's reminder tokens to display tokens
           const seatTokens = reminderTokens
@@ -114,6 +119,7 @@ export function GrimoireCircle({
               key={player.id}
               player={player}
               character={character}
+              drunkRoleChar={drunkRoleChar}
               x={x}
               y={y}
               angle={angle}

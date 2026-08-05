@@ -1152,6 +1152,15 @@ button, select, input, textarea {
 
 .role-select:focus { border-color: var(--accent); }
 
+/* Secondary select shown when Drunk is assigned — amber tint */
+.drunk-fake-role-select {
+  margin-top: 6px;
+  border-color: #c47a3a !important;
+  color: #c47a3a;
+}
+
+.drunk-fake-role-select:focus { border-color: #c47a3a !important; }
+
 .assign-status { padding-top: 8px; }
 .assign-valid  { font-size: 0.875rem; color: var(--online); }
 
@@ -1315,6 +1324,13 @@ button, select, input, textarea {
   opacity: 0.65;
 }
 
+/* Drunk player — amber dashed border to show they're bluffing a fake role */
+.grimoire-token--drunk {
+  border-style: dashed;
+  border-color: #c47a3a !important;
+  background: rgba(196, 122, 58, 0.08) !important;
+}
+
 .grimoire-death-cross {
   position: absolute;
   top: 50%;
@@ -1355,6 +1371,18 @@ button, select, input, textarea {
   text-overflow: ellipsis;
   display: block;
   text-align: center;
+}
+
+.grimoire-label-drunk {
+  font-size: 0.5625rem;
+  color: #c47a3a;
+  white-space: nowrap;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  text-align: center;
+  font-style: italic;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -1593,6 +1621,27 @@ button, select, input, textarea {
   color: var(--muted);
 }
 
+.panel-drunk-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.panel-drunk-label {
+  font-size: 0.6875rem;
+  color: #c47a3a;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.panel-drunk-role {
+  font-size: 0.875rem;
+  color: #c47a3a;
+  font-weight: 600;
+}
+
 .panel-close-btn {
   background: none;
   border: 1px solid var(--border-mid);
@@ -1621,6 +1670,12 @@ button, select, input, textarea {
   line-height: 1.6;
   border-left: 3px solid var(--border-mid);
   padding-left: 12px;
+}
+
+.panel-ability--drunk {
+  border-left-color: #c47a3a;
+  color: rgba(196, 122, 58, 0.8);
+  font-size: 0.8125rem;
 }
 
 .panel-controls {

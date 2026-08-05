@@ -69,6 +69,7 @@ export interface Player {
   is_bot: boolean;            // bot placeholder for testing — added Phase bot
   seat_order: number;
   role: string | null;        // character ID — assigned Phase 3, null until then
+  drunk_role: string | null;  // fake Townsfolk role shown to the Drunk player
   is_alive: boolean;          // alive/dead state — Phase 4
   ghost_vote_used: boolean;   // ghost vote consumed — Phase 4
   notes: string;              // Storyteller-only notes — Phase 4

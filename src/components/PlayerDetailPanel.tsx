@@ -17,6 +17,8 @@ const CHAR_NAME = new Map(TROUBLE_BREWING.map((c) => [c.id, c.name]));
 interface Props {
   player: Player;
   character: Character | null;
+  /** For the Drunk: the fake Townsfolk role they think they have */
+  drunkRoleChar: Character | null;
   playerTokens: ReminderToken[];
   onClose: () => void;
   onToggleAlive: (playerId: string) => void;
@@ -29,6 +31,7 @@ interface Props {
 export function PlayerDetailPanel({
   player,
   character,
+  drunkRoleChar,
   playerTokens,
   onClose,
   onToggleAlive,
@@ -77,12 +80,20 @@ export function PlayerDetailPanel({
           <div className="panel-header-info">
             <h2 className="panel-player-name">{player.display_name}</h2>
             {character ? (
-              <div className="panel-character-row">
-                <span className={`card-team-badge team-badge-${character.team}`}>
-                  {TEAM_LABELS[character.team] ?? character.team}
-                </span>
-                <span className="panel-character-name">{character.name}</span>
-              </div>
+              <>
+                <div className="panel-character-row">
+                  <span className={`card-team-badge team-badge-${character.team}`}>
+                    {TEAM_LABELS[character.team] ?? character.team}
+                  </span>
+                  <span className="panel-character-name">{character.name}</span>
+                </div>
+                {drunkRoleChar && (
+                  <div className="panel-drunk-row">
+                    <span className="panel-drunk-label">Thinks they are:</span>
+                    <span className="panel-drunk-role">{drunkRoleChar.name}</span>
+                  </div>
+                )}
+              </>
             ) : (
               <span className="panel-no-role">No role assigned</span>
             )}
@@ -99,6 +110,11 @@ export function PlayerDetailPanel({
         {/* ── Character ability ── */}
         {character && (
           <p className="panel-ability">{character.ability}</p>
+        )}
+        {drunkRoleChar && (
+          <p className="panel-ability panel-ability--drunk">
+            Fake ability shown to player: {drunkRoleChar.ability}
+          </p>
         )}
 
         {/* ── Status controls ── */}

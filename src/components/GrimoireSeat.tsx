@@ -1,5 +1,6 @@
 import type { Player, Character } from '../types';
 
+
 /** A resolved reminder token ready for display on the seat. */
 export interface SeatToken {
   id: string;
@@ -10,6 +11,8 @@ export interface SeatToken {
 interface Props {
   player: Player;
   character: Character | null;
+  /** For the Drunk: the fake Townsfolk role they think they have */
+  drunkRoleChar: Character | null;
   /** Left position as a percentage of the seating-circle container */
   x: number;
   /** Top position as a percentage of the seating-circle container */
@@ -41,6 +44,7 @@ function getInitials(name: string): string {
 export function GrimoireSeat({
   player,
   character,
+  drunkRoleChar,
   x,
   y,
   angle,
@@ -82,7 +86,7 @@ export function GrimoireSeat({
        *
        * Perimeter is reserved for future reminder token satellites.
        */}
-      <div className={`seat-token grimoire-token${!player.is_alive ? ' grimoire-token--dead' : ''}`}>
+      <div className={`seat-token grimoire-token${!player.is_alive ? ' grimoire-token--dead' : ''}${drunkRoleChar ? ' grimoire-token--drunk' : ''}`}>
         <span className="seat-initials" aria-hidden="true">
           {getInitials(player.display_name)}
         </span>
@@ -114,6 +118,9 @@ export function GrimoireSeat({
         </span>
         {character && (
           <span className="grimoire-label-role">{character.name}</span>
+        )}
+        {drunkRoleChar && (
+          <span className="grimoire-label-drunk">as {drunkRoleChar.name}</span>
         )}
 
         {/* Reminder token chips */}
