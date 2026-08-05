@@ -61,6 +61,7 @@ export function PlayerSeat({
   const tokenClasses = [
     'seat-token',
     player.is_host && 'is-storyteller',
+    player.is_bot && 'is-bot',
     isMe && 'is-me',
   ]
     .filter(Boolean)
@@ -98,11 +99,13 @@ export function PlayerSeat({
           {getInitials(player.display_name)}
         </span>
 
-        {/* Online presence indicator */}
-        <div
-          className={`seat-presence ${isOnline ? 'online' : 'offline'}`}
-          title={isOnline ? 'Online' : 'Offline'}
-        />
+        {/* Online presence indicator — bots are never "online" */}
+        {!player.is_bot && (
+          <div
+            className={`seat-presence ${isOnline ? 'online' : 'offline'}`}
+            title={isOnline ? 'Online' : 'Offline'}
+          />
+        )}
 
         {/*
          * Remove button — appears on the selected seat only.
@@ -144,6 +147,11 @@ export function PlayerSeat({
         {player.is_host && (
           <span className="seat-st-badge" aria-label="Storyteller">
             ST
+          </span>
+        )}
+        {player.is_bot && (
+          <span className="seat-bot-badge" aria-label="Bot">
+            BOT
           </span>
         )}
       </div>

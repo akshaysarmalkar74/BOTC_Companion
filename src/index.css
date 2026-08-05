@@ -571,6 +571,20 @@ button, select, input, textarea {
   text-transform: uppercase;
 }
 
+.seat-bot-badge {
+  font-size: 0.5rem;
+  font-weight: 700;
+  color: var(--night-color);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.seat-token.is-bot {
+  border-style: dashed;
+  opacity: 0.8;
+}
+
 /* ══════════════════════════════════════════════════════════
    Lobby nav bar
    ══════════════════════════════════════════════════════════ */
@@ -629,6 +643,20 @@ button, select, input, textarea {
 .lobby-nav-btn--primary:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.lobby-nav-btn--bot {
+  color: var(--night-color);
+  border-color: rgba(100, 120, 180, 0.35);
+  border-style: dashed;
+  flex: 0 0 auto;
+  min-width: 90px;
+}
+
+.lobby-nav-btn--bot:hover {
+  border-color: var(--night-color);
+  background: rgba(100, 120, 180, 0.08);
+  color: var(--text);
 }
 
 /* ══════════════════════════════════════════════════════════

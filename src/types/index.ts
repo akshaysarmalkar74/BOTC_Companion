@@ -66,6 +66,7 @@ export interface Player {
   room_id: string;
   display_name: string;
   is_host: boolean;
+  is_bot: boolean;            // bot placeholder for testing — added Phase bot
   seat_order: number;
   role: string | null;        // character ID — assigned Phase 3, null until then
   is_alive: boolean;          // alive/dead state — Phase 4
