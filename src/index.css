@@ -2483,6 +2483,25 @@ button, select, input, textarea {
   align-self: flex-start;
 }
 
+/* ── Undertaker impaired false-role section ── */
+
+.step-impaired-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(151, 149, 196, 0.07);
+  border: 1px solid rgba(151, 149, 196, 0.28);
+}
+
+.step-impaired-label {
+  font-size: 0.8rem;
+  color: var(--team-outsider);
+  font-style: italic;
+  margin: 0;
+}
+
 /* ── Fortune Teller red herring ── */
 
 .step-red-herring {

@@ -28,10 +28,12 @@ export function NightAssistantPage() {
   const [localNotes, setLocalNotes]         = useState('');
   const [localBluffs, setLocalBluffs]       = useState<string[]>([]);
   const [localRoleId, setLocalRoleId]       = useState('');
-  const [showReveal, setShowReveal]             = useState(false);
-  const [showPlayerRole, setShowPlayerRole]     = useState(false);
-  const [showTargetReveal, setShowTargetReveal] = useState(false);
-  const [executedPlayerId, setExecutedPlayerId] = useState<string | null>(null);
+  const [showReveal, setShowReveal]               = useState(false);
+  const [showPlayerRole, setShowPlayerRole]       = useState(false);
+  const [showTargetReveal, setShowTargetReveal]   = useState(false);
+  const [showUndertakerReveal, setShowUndertakerReveal] = useState(false);
+  const [localFalseRoleId, setLocalFalseRoleId]   = useState('');
+  const [executedPlayerId, setExecutedPlayerId]   = useState<string | null>(null);
   const [showProgress, setShowProgress]     = useState(false);
   const [saving, setSaving]                 = useState(false);
   const [loading, setLoading]               = useState(true);
@@ -170,6 +172,8 @@ export function NightAssistantPage() {
     setShowReveal(false);
     setShowPlayerRole(false);
     setShowTargetReveal(false);
+    setShowUndertakerReveal(false);
+    setLocalFalseRoleId('');
     const saved = nightActions.find((a) => a.step_key === stepKey);
     setLocalTargets(saved?.target_ids ?? []);
     if (saved?.notes) {
@@ -395,7 +399,7 @@ export function NightAssistantPage() {
 
   if (!currentStep) return null;
 
-  const charDef   = currentStep.characterId
+  const charDef    = currentStep.characterId
     ? TROUBLE_BREWING.find((c) => c.id === currentStep.characterId) ?? null
     : null;
   // Find the player for this step. Also check drunk_role: a Drunk player who
@@ -406,7 +410,31 @@ export function NightAssistantPage() {
         ?? null)
     : null;
 
-  // ── Ravenkeeper: reveal target's role ────────────────────────────────
+  // Status flags — must come before any derived values that use them
+  const isCharPlayerDrunk    = charPlayer?.role === 'drunk';
+  const isCharPlayerPoisoned = charPlayer
+    ? reminderTokens.some((t) => t.player_id === charPlayer.id && t.token_key === 'poisoner-poisoned')
+    : false;
+
+  // ── Scarlet Woman succession step ────────────────────────────────────
+  const isSWSuccessionStep = currentStep.characterId === 'scarlet-woman';
+  const showRoleCharDef    = isSWSuccessionStep
+    ? (TROUBLE_BREWING.find((c) => c.id === 'imp') ?? charDef)
+    : charDef;
+
+  // ── Undertaker ───────────────────────────────────────────────────────
+  const isUndertakerStep     = currentStep.characterId === 'undertaker';
+  const executedPlayer       = executedPlayerId ? players.find((p) => p.id === executedPlayerId) ?? null : null;
+  const executedCharDef      = executedPlayer?.role
+    ? TROUBLE_BREWING.find((c) => c.id === executedPlayer.role) ?? null
+    : null;
+  const undertakerIsImpaired = isUndertakerStep && (isCharPlayerDrunk || isCharPlayerPoisoned);
+  // Reveal shows the false role when impaired, real role otherwise
+  const undertakerRevealChar = undertakerIsImpaired
+    ? (localFalseRoleId ? TROUBLE_BREWING.find((c) => c.id === localFalseRoleId) ?? null : null)
+    : executedCharDef;
+
+  // ── Ravenkeeper ──────────────────────────────────────────────────────
   const isRavenkeeperStep     = currentStep.characterId === 'ravenkeeper';
   const ravenkeeperTarget     = isRavenkeeperStep && localTargets.length === 1
     ? (players.find((p) => p.id === localTargets[0]) ?? null)
@@ -415,40 +443,19 @@ export function NightAssistantPage() {
     ? (TROUBLE_BREWING.find((c) => c.id === ravenkeeperTarget.role) ?? null)
     : null;
 
-  // ── Fortune Teller: red herring ───────────────────────────────────────
+  // ── Fortune Teller ───────────────────────────────────────────────────
   const isFortuneTellerStep = currentStep.characterId === 'fortune-teller';
   const redHerringToken     = reminderTokens.find((t) => t.token_key === 'fortune-teller-red-herring');
   const redHerringPlayer    = redHerringToken
     ? (players.find((p) => p.id === redHerringToken.player_id) ?? null)
     : null;
-  // Good players eligible to be the red herring
   const goodPlayers = players.filter((p) => {
     const char = p.role ? TROUBLE_BREWING.find((c) => c.id === p.role) : null;
     return char && (char.team === 'townsfolk' || char.team === 'outsider');
   });
 
-  // ── Undertaker: executed player info ─────────────────────────────────
-  const isUndertakerStep   = currentStep.characterId === 'undertaker';
-  const executedPlayer     = executedPlayerId ? players.find((p) => p.id === executedPlayerId) ?? null : null;
-  const executedCharDef    = executedPlayer?.role
-    ? TROUBLE_BREWING.find((c) => c.id === executedPlayer.role) ?? null
-    : null;
-
-  // ── Spy: show full grimoire ───────────────────────────────────────────
+  // ── Spy ──────────────────────────────────────────────────────────────
   const isSpyStep = currentStep.characterId === 'spy';
-
-  // For the Scarlet Woman succession step, the reveal shows the IMP card (not SW card)
-  // because she is being promoted — the Storyteller holds up the Imp token to her.
-  const isSWSuccessionStep = currentStep.characterId === 'scarlet-woman';
-  const showRoleCharDef = isSWSuccessionStep
-    ? (TROUBLE_BREWING.find((c) => c.id === 'imp') ?? charDef)
-    : charDef;
-
-  // Status flags for the acting player — affects ability outcome
-  const isCharPlayerDrunk    = charPlayer?.role === 'drunk';
-  const isCharPlayerPoisoned = charPlayer
-    ? reminderTokens.some((t) => t.player_id === charPlayer.id && t.token_key === 'poisoner-poisoned')
-    : false;
 
   // Demon bluffs: ALL Trouble Brewing roles NOT assigned to any player
   const assignedRoles = new Set(players.map((p) => p.role).filter(Boolean));
@@ -588,17 +595,62 @@ export function NightAssistantPage() {
           {/* Instruction */}
           <p className="step-instruction">{currentStep.instruction}</p>
 
-          {/* Undertaker: executed player info panel */}
+          {/* Undertaker: executed player info + impairment handling */}
           {isUndertakerStep && (
             executedPlayer && executedCharDef ? (
-              <div className={`step-info-panel step-info-panel--${executedCharDef.team}`}>
-                <p className="step-info-panel-label">Yesterday's execution</p>
-                <p className="step-info-panel-name">{executedPlayer.display_name}</p>
-                <p className={`step-info-panel-role team-color-${executedCharDef.team}`}>
-                  {executedCharDef.name}
-                  <span className="step-info-panel-team"> · {executedCharDef.team}</span>
-                </p>
-              </div>
+              <>
+                {/* Real role — always shown to ST for reference */}
+                <div className={`step-info-panel step-info-panel--${undertakerIsImpaired ? 'muted' : executedCharDef.team}`}>
+                  <p className="step-info-panel-label">
+                    Yesterday's execution{undertakerIsImpaired ? ' · ST reference only' : ''}
+                  </p>
+                  <p className="step-info-panel-name">{executedPlayer.display_name}</p>
+                  <p className={`step-info-panel-role team-color-${executedCharDef.team}`}>
+                    {executedCharDef.name}
+                    <span className="step-info-panel-team"> · {executedCharDef.team}</span>
+                  </p>
+                </div>
+
+                {/* Impaired: false role picker */}
+                {undertakerIsImpaired ? (
+                  <div className="step-impaired-section">
+                    <p className="step-impaired-label">
+                      {isCharPlayerDrunk ? 'Drunk' : 'Poisoned'} — pick a false role to show instead:
+                    </p>
+                    <div className="step-player-grid">
+                      {TROUBLE_BREWING.map((c) => {
+                        const sel = localFalseRoleId === c.id;
+                        return (
+                          <button
+                            key={c.id}
+                            className={['step-player-btn', sel && 'is-selected'].filter(Boolean).join(' ')}
+                            onClick={() => setLocalFalseRoleId(sel ? '' : c.id)}
+                          >
+                            <span className="step-player-name">{c.name}</span>
+                            <span className={`step-player-role team-color-${c.team}`}>{c.team}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {localFalseRoleId && (
+                      <button
+                        className="btn btn-secondary step-show-role-btn"
+                        onClick={() => setShowUndertakerReveal(true)}
+                      >
+                        Show false role to {charPlayer?.display_name ?? 'Undertaker'} →
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  /* Not impaired: reveal real role */
+                  <button
+                    className="btn btn-secondary step-show-role-btn"
+                    onClick={() => setShowUndertakerReveal(true)}
+                  >
+                    Show {executedPlayer.display_name}'s role to {charPlayer?.display_name ?? 'Undertaker'} →
+                  </button>
+                )}
+              </>
             ) : (
               <div className="step-info-panel step-info-panel--muted">
                 <p className="step-info-panel-label">No execution recorded for the previous day.</p>
@@ -858,6 +910,26 @@ export function NightAssistantPage() {
           </div>
         </div>
       </main>
+
+      {/* ── Undertaker role reveal (real or false) ── */}
+      {showUndertakerReveal && undertakerRevealChar && executedPlayer && (
+        <div className="reveal-overlay" onClick={() => setShowUndertakerReveal(false)}>
+          <div className="reveal-content" onClick={(e) => e.stopPropagation()}>
+            <p className="reveal-eyebrow">
+              {undertakerIsImpaired ? 'False information' : 'The executed player was'}
+            </p>
+            <h2 className="reveal-title">{executedPlayer.display_name}</h2>
+            <div className={`reveal-role-card reveal-role-card--${undertakerRevealChar.team} reveal-role-card--solo`}>
+              <span className="reveal-role-name">{undertakerRevealChar.name}</span>
+              <span className="reveal-role-team">{TEAM_LABELS[undertakerRevealChar.team]}</span>
+              <p className="reveal-role-ability">{undertakerRevealChar.ability}</p>
+            </div>
+            <button className="reveal-dismiss" onClick={() => setShowUndertakerReveal(false)}>
+              Put them back to sleep
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Ravenkeeper target role reveal ── */}
       {showTargetReveal && ravenkeeperTarget && ravenkeeperTargetChar && (
