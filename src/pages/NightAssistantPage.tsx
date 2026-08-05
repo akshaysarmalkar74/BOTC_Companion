@@ -68,7 +68,7 @@ export function NightAssistantPage() {
           supabase
             .from('players')
             .select(
-              'id, display_name, seat_order, is_host, role, is_alive, ghost_vote_used, notes, room_id, created_at'
+              'id, display_name, seat_order, is_host, role, drunk_role, is_alive, ghost_vote_used, notes, room_id, created_at, is_bot'
             )
             .eq('room_id', roomId)
             .eq('is_host', false)
@@ -351,9 +351,19 @@ export function NightAssistantPage() {
   const charDef   = currentStep.characterId
     ? TROUBLE_BREWING.find((c) => c.id === currentStep.characterId) ?? null
     : null;
+  // Find the player for this step. Also check drunk_role: a Drunk player who
+  // thinks they are this character should be treated as acting in this step.
   const charPlayer = currentStep.characterId
-    ? players.find((p) => p.role === currentStep.characterId) ?? null
+    ? (players.find((p) => p.role === currentStep.characterId)
+        ?? players.find((p) => p.drunk_role === currentStep.characterId)
+        ?? null)
     : null;
+
+  // Status flags for the acting player — affects ability outcome
+  const isCharPlayerDrunk    = charPlayer?.role === 'drunk';
+  const isCharPlayerPoisoned = charPlayer
+    ? reminderTokens.some((t) => t.player_id === charPlayer.id && t.token_key === 'poisoner-poisoned')
+    : false;
 
   // Demon bluffs: ALL Trouble Brewing roles NOT assigned to any player
   const assignedRoles = new Set(players.map((p) => p.role).filter(Boolean));
@@ -413,6 +423,16 @@ export function NightAssistantPage() {
           {activeSteps.map((step, i) => {
             const done = i < currentIndex || nightActions.some((a) => a.step_key === step.key);
             const current = i === currentIndex;
+            // Compute drunk/poisoned status for the player at this step
+            const stepPlayer = step.characterId
+              ? (players.find((p) => p.role === step.characterId)
+                  ?? players.find((p) => p.drunk_role === step.characterId)
+                  ?? null)
+              : null;
+            const stepIsDrunk    = stepPlayer?.role === 'drunk';
+            const stepIsPoisoned = stepPlayer
+              ? reminderTokens.some((t) => t.player_id === stepPlayer.id && t.token_key === 'poisoner-poisoned')
+              : false;
             return (
               <div
                 key={step.key}
@@ -422,6 +442,12 @@ export function NightAssistantPage() {
                   {done ? '✓' : current ? '▶' : '○'}
                 </span>
                 <span className="night-progress-label">{step.label}</span>
+                {stepIsDrunk && (
+                  <span className="step-status-badge step-status-badge--drunk">Drunk</span>
+                )}
+                {stepIsPoisoned && (
+                  <span className="step-status-badge step-status-badge--poisoned">Poisoned</span>
+                )}
                 {step.conditional && (
                   <span className="night-progress-cond">conditional</span>
                 )}
@@ -445,6 +471,12 @@ export function NightAssistantPage() {
             {charPlayer && (
               <p className="step-player-label">
                 Wake <strong>{charPlayer.display_name}</strong>
+                {isCharPlayerDrunk && (
+                  <span className="step-status-badge step-status-badge--drunk">Drunk</span>
+                )}
+                {isCharPlayerPoisoned && (
+                  <span className="step-status-badge step-status-badge--poisoned">Poisoned</span>
+                )}
               </p>
             )}
           </div>
