@@ -435,13 +435,18 @@ export function NightAssistantPage() {
     : executedCharDef;
 
   // ── Ravenkeeper ──────────────────────────────────────────────────────
-  const isRavenkeeperStep     = currentStep.characterId === 'ravenkeeper';
-  const ravenkeeperTarget     = isRavenkeeperStep && localTargets.length === 1
+  const isRavenkeeperStep      = currentStep.characterId === 'ravenkeeper';
+  const ravenkeeperIsImpaired  = isRavenkeeperStep && (isCharPlayerDrunk || isCharPlayerPoisoned);
+  const ravenkeeperTarget      = isRavenkeeperStep && localTargets.length === 1
     ? (players.find((p) => p.id === localTargets[0]) ?? null)
     : null;
-  const ravenkeeperTargetChar = ravenkeeperTarget?.role
+  const ravenkeeperTargetChar  = ravenkeeperTarget?.role
     ? (TROUBLE_BREWING.find((c) => c.id === ravenkeeperTarget.role) ?? null)
     : null;
+  // When impaired, reveal shows false role; otherwise real role
+  const ravenkeeperRevealChar  = ravenkeeperIsImpaired
+    ? (localFalseRoleId ? TROUBLE_BREWING.find((c) => c.id === localFalseRoleId) ?? null : null)
+    : ravenkeeperTargetChar;
 
   // ── Fortune Teller ───────────────────────────────────────────────────
   const isFortuneTellerStep = currentStep.characterId === 'fortune-teller';
@@ -469,16 +474,20 @@ export function NightAssistantPage() {
       })
     : [];
 
-  // Role reveal: only roles of the SELECTED players that match the required team.
-  // This way the picker is hidden until the ST selects players, and only shows
-  // relevant options (e.g. the actual Townsfolk among the two chosen players).
+  // Role reveal pool for Washerwoman / Librarian / Investigator.
+  // When the character is impaired (drunk/poisoned), all TB roles are available so
+  // the ST can show any misleading token. Otherwise only matching roles of the
+  // correct team among the selected players are shown.
+  const isRoleRevealImpaired = !!currentStep.roleRevealTeam && (isCharPlayerDrunk || isCharPlayerPoisoned);
   const roleRevealPool = currentStep.roleRevealTeam && localTargets.length > 0
-    ? TROUBLE_BREWING.filter((c) => {
-        const selectedRoles = localTargets
-          .map((id) => players.find((p) => p.id === id)?.role)
-          .filter(Boolean) as string[];
-        return c.team === currentStep.roleRevealTeam && selectedRoles.includes(c.id);
-      })
+    ? isRoleRevealImpaired
+      ? TROUBLE_BREWING // any role when impaired
+      : TROUBLE_BREWING.filter((c) => {
+          const selectedRoles = localTargets
+            .map((id) => players.find((p) => p.id === id)?.role)
+            .filter(Boolean) as string[];
+          return c.team === currentStep.roleRevealTeam && selectedRoles.includes(c.id);
+        })
     : [];
 
   const doneLabel = saving
@@ -772,14 +781,53 @@ export function NightAssistantPage() {
             </div>
           )}
 
-          {/* Ravenkeeper: reveal target's role after selection */}
-          {isRavenkeeperStep && ravenkeeperTarget && ravenkeeperTargetChar && (
-            <button
-              className="btn btn-secondary step-show-role-btn"
-              onClick={() => setShowTargetReveal(true)}
-            >
-              Show {ravenkeeperTarget.display_name}'s role to Ravenkeeper →
-            </button>
+          {/* Ravenkeeper: reveal target's role (real or false when impaired) */}
+          {isRavenkeeperStep && ravenkeeperTarget && (
+            ravenkeeperIsImpaired ? (
+              <div className="step-impaired-section">
+                {ravenkeeperTargetChar && (
+                  <p className="step-impaired-label">
+                    Real role (ST ref only): <strong>{ravenkeeperTarget.display_name}</strong> is the{' '}
+                    <span className={`team-color-${ravenkeeperTargetChar.team}`}>{ravenkeeperTargetChar.name}</span>
+                  </p>
+                )}
+                <p className="step-impaired-label">
+                  {isCharPlayerDrunk ? 'Drunk' : 'Poisoned'} — pick a false role to show instead:
+                </p>
+                <div className="step-player-grid">
+                  {TROUBLE_BREWING.map((c) => {
+                    const sel = localFalseRoleId === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        className={['step-player-btn', sel && 'is-selected'].filter(Boolean).join(' ')}
+                        onClick={() => setLocalFalseRoleId(sel ? '' : c.id)}
+                      >
+                        <span className="step-player-name">{c.name}</span>
+                        <span className={`step-player-role team-color-${c.team}`}>{c.team}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {localFalseRoleId && (
+                  <button
+                    className="btn btn-secondary step-show-role-btn"
+                    onClick={() => setShowTargetReveal(true)}
+                  >
+                    Show false role to Ravenkeeper →
+                  </button>
+                )}
+              </div>
+            ) : (
+              ravenkeeperTargetChar && (
+                <button
+                  className="btn btn-secondary step-show-role-btn"
+                  onClick={() => setShowTargetReveal(true)}
+                >
+                  Show {ravenkeeperTarget.display_name}'s role to Ravenkeeper →
+                </button>
+              )
+            )
           )}
 
           {/* Demon bluffs */}
@@ -852,12 +900,17 @@ export function NightAssistantPage() {
 
           {/* Role reveal (Washerwoman / Librarian / Investigator) */}
           {currentStep.roleRevealTeam && (
-            <div className="step-role-reveal-section">
+            <div className={`step-role-reveal-section${isRoleRevealImpaired ? ' step-role-reveal-section--impaired' : ''}`}>
+              {isRoleRevealImpaired && (
+                <p className="step-impaired-label">
+                  {isCharPlayerDrunk ? 'Drunk' : 'Poisoned'} — ability impaired. Pick any role to show as false information:
+                </p>
+              )}
               {localTargets.length === 0 ? (
                 <p className="step-select-hint step-select-hint--muted">
                   Select players above, then choose which role token to show.
                 </p>
-              ) : roleRevealPool.length === 0 ? (
+              ) : (!isRoleRevealImpaired && roleRevealPool.length === 0) ? (
                 <p className="step-select-hint step-select-hint--muted">
                   None of the selected players has a matching {currentStep.roleRevealTeam} role —
                   choose different players or skip this step.
@@ -865,7 +918,9 @@ export function NightAssistantPage() {
               ) : (
                 <>
                   <p className="step-select-hint">
-                    Which {currentStep.roleRevealTeam} role token are you showing?
+                    {isRoleRevealImpaired
+                      ? 'Which role token are you showing? (any role)'
+                      : `Which ${currentStep.roleRevealTeam} role token are you showing?`}
                   </p>
                   <div className="step-role-reveal-grid">
                     {roleRevealPool.map((c) => {
@@ -873,10 +928,17 @@ export function NightAssistantPage() {
                       return (
                         <button
                           key={c.id}
-                          className={['step-role-chip', sel && 'is-selected'].filter(Boolean).join(' ')}
+                          className={[
+                            'step-role-chip',
+                            sel && 'is-selected',
+                            isRoleRevealImpaired && `step-role-chip--${c.team}`,
+                          ].filter(Boolean).join(' ')}
                           onClick={() => setLocalRoleId(sel ? '' : c.id)}
                         >
                           {c.name}
+                          {isRoleRevealImpaired && (
+                            <span className={`step-role-chip-team team-color-${c.team}`}> · {c.team}</span>
+                          )}
                         </button>
                       );
                     })}
@@ -886,7 +948,9 @@ export function NightAssistantPage() {
                       className="btn btn-primary reveal-show-btn"
                       onClick={() => setShowReveal(true)}
                     >
-                      Show role card to {charPlayer?.display_name ?? 'player'} →
+                      {isRoleRevealImpaired
+                        ? `Show false role card to ${charPlayer?.display_name ?? 'player'} →`
+                        : `Show role card to ${charPlayer?.display_name ?? 'player'} →`}
                     </button>
                   )}
                 </>
@@ -932,15 +996,17 @@ export function NightAssistantPage() {
       )}
 
       {/* ── Ravenkeeper target role reveal ── */}
-      {showTargetReveal && ravenkeeperTarget && ravenkeeperTargetChar && (
+      {showTargetReveal && ravenkeeperTarget && ravenkeeperRevealChar && (
         <div className="reveal-overlay" onClick={() => setShowTargetReveal(false)}>
           <div className="reveal-content" onClick={(e) => e.stopPropagation()}>
-            <p className="reveal-eyebrow">Their role</p>
+            <p className="reveal-eyebrow">
+              {ravenkeeperIsImpaired ? 'False information' : 'Their role'}
+            </p>
             <h2 className="reveal-title">{ravenkeeperTarget.display_name}</h2>
-            <div className={`reveal-role-card reveal-role-card--${ravenkeeperTargetChar.team} reveal-role-card--solo`}>
-              <span className="reveal-role-name">{ravenkeeperTargetChar.name}</span>
-              <span className="reveal-role-team">{TEAM_LABELS[ravenkeeperTargetChar.team]}</span>
-              <p className="reveal-role-ability">{ravenkeeperTargetChar.ability}</p>
+            <div className={`reveal-role-card reveal-role-card--${ravenkeeperRevealChar.team} reveal-role-card--solo`}>
+              <span className="reveal-role-name">{ravenkeeperRevealChar.name}</span>
+              <span className="reveal-role-team">{TEAM_LABELS[ravenkeeperRevealChar.team]}</span>
+              <p className="reveal-role-ability">{ravenkeeperRevealChar.ability}</p>
             </div>
             <button className="reveal-dismiss" onClick={() => setShowTargetReveal(false)}>
               Put them back to sleep

@@ -2483,6 +2483,20 @@ button, select, input, textarea {
   align-self: flex-start;
 }
 
+/* ── Impaired role reveal section (Washerwoman/Librarian/Investigator) ── */
+
+.step-role-reveal-section--impaired {
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  background: rgba(151, 149, 196, 0.07);
+  border: 1px solid rgba(151, 149, 196, 0.28);
+}
+
+.step-role-chip-team {
+  font-size: 0.7em;
+  opacity: 0.75;
+}
+
 /* ── Undertaker impaired false-role section ── */
 
 .step-impaired-section {
