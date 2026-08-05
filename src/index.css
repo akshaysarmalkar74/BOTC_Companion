@@ -3743,6 +3743,48 @@ button, select, input, textarea {
 
 .modal-dismiss { width: 100%; }
 
+/* ── Win Alert Modal ── */
+
+.win-alert-modal {
+  max-width: 420px;
+  text-align: center;
+  align-items: center;
+}
+
+.win-alert-badge {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 5px 16px;
+  border-radius: 100px;
+}
+
+.win-alert-badge--good {
+  background: rgba(79, 168, 154, 0.15);
+  color: var(--team-townsfolk);
+  border: 1px solid rgba(79, 168, 154, 0.35);
+}
+
+.win-alert-badge--evil {
+  background: rgba(230, 57, 74, 0.15);
+  color: var(--team-demon);
+  border: 1px solid rgba(230, 57, 74, 0.35);
+}
+
+.win-alert-reason {
+  font-size: 1rem;
+  color: var(--text);
+  font-style: italic;
+}
+
+.win-alert-hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0;
+}
+
 /* ── Game Over screen ── */
 
 .game-over-card {

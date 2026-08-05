@@ -7,6 +7,7 @@ import { GrimoireCircle } from '../components/GrimoireCircle';
 import { PlayerDetailPanel } from '../components/PlayerDetailPanel';
 import { TROUBLE_BREWING } from '../data/troubleBrewing';
 import { recordManualDeath, recordGameEnd, recordReminderAdded, recordReminderRemoved } from '../lib/gameHistory';
+import { detectWinCondition, type WinDetection } from '../lib/winConditions';
 import type { Player, Room, ReminderToken } from '../types';
 
 export function GamePage() {
@@ -19,6 +20,7 @@ export function GamePage() {
   const [loading, setLoading]               = useState(true);
   const [showEndModal, setShowEndModal]     = useState(false);
   const [endingGame, setEndingGame]         = useState(false);
+  const [winAlert, setWinAlert]             = useState<WinDetection | null>(null);
   const navigate = useNavigate();
 
   const session = loadSession();
@@ -171,13 +173,15 @@ export function GamePage() {
     const player = allPlayers.find((p) => p.id === targetId);
     if (!player) return;
     const newAlive = !player.is_alive;
-    setAllPlayers((prev) =>
-      prev.map((p) => (p.id === targetId ? { ...p, is_alive: newAlive } : p))
-    );
+    const updatedPlayers = allPlayers.map((p) => (p.id === targetId ? { ...p, is_alive: newAlive } : p));
+    setAllPlayers(updatedPlayers);
     await supabase.from('players').update({ is_alive: newAlive }).eq('id', targetId);
     // Record manual death (not resurrection) to history
     if (!newAlive && room) {
       void recordManualDeath(roomId, room.phase, targetId, allPlayers);
+      // Check win conditions after a player dies
+      const win = detectWinCondition(updatedPlayers);
+      if (win) setWinAlert(win);
     }
   };
 
@@ -352,6 +356,37 @@ export function GamePage() {
             onAddToken={handleAddToken}
             onRemoveToken={handleRemoveToken}
           />
+        )}
+
+        {/* Win Condition Alert */}
+        {winAlert && (
+          <div className="modal-overlay">
+            <div className="modal-card win-alert-modal">
+              <div className={`win-alert-badge win-alert-badge--${winAlert.outcome}`}>
+                {winAlert.outcome === 'good' ? 'Good Wins' : 'Evil Wins'}
+              </div>
+              <h2 className="modal-title">Win Condition Detected</h2>
+              <p className="modal-subtitle win-alert-reason">{winAlert.reason}</p>
+              <p className="win-alert-hint">
+                Confirm to end the game, or continue if this was triggered by error.
+              </p>
+              <div className="end-game-options">
+                <button
+                  className={`btn end-game-btn ${winAlert.outcome === 'good' ? 'end-game-good' : 'end-game-evil'}`}
+                  onClick={() => { setWinAlert(null); void handleEndGame(winAlert.outcome); }}
+                  disabled={endingGame}
+                >
+                  End Game — {winAlert.outcome === 'good' ? 'Good Wins' : 'Evil Wins'}
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setWinAlert(null)}
+                >
+                  Continue Anyway
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* End Game Modal */}

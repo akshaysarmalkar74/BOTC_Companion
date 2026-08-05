@@ -8,6 +8,7 @@ import { TROUBLE_BREWING } from '../data/troubleBrewing';
 import { checkVirgin, checkSaint, checkSlayer, checkMayor } from '../engine/dayEngine';
 import type { DayAbilityResult } from '../engine/dayEngine';
 import type { GameState } from '../engine/types';
+import { detectWinCondition, detectSaintExecution, type WinDetection } from '../lib/winConditions';
 import type { Player, Room, ReminderToken, DayEvent, DayNote } from '../types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -66,6 +67,8 @@ export function DayAssistantPage() {
   const [dayAbilityBanners, setDayAbilityBanners] = useState<DayAbilityResult[]>([]);
   const [slayerPlayerId, setSlayerPlayerId] = useState('');
   const [slayerTargetId, setSlayerTargetId] = useState('');
+  const [winAlert, setWinAlert]             = useState<WinDetection | null>(null);
+  const [endingGame, setEndingGame]         = useState(false);
   const navigate = useNavigate();
 
   const session = loadSession();
@@ -271,7 +274,7 @@ export function DayAssistantPage() {
     setPlayers(updatedPlayers);
     void recordExecution(room.id, room.phase, executeId, players);
 
-    // Check Saint ability
+    // Check Saint ability (dayEngine)
     const gs = buildGameState(updatedPlayers, reminderTokens);
     const saintResult = checkSaint(gs, executeId);
     if (saintResult) {
@@ -284,6 +287,11 @@ export function DayAssistantPage() {
         metadata: { abilityType: saintResult.type, outcome: 'evil' },
       });
     }
+
+    // Automatic win condition checks: Saint execution, Demon death, ≤2 alive
+    const saintWin = detectSaintExecution(players, executeId);
+    const autoWin  = saintWin ?? detectWinCondition(updatedPlayers);
+    if (autoWin) setWinAlert(autoWin);
 
     setExecuteId('');
   };
@@ -308,7 +316,11 @@ export function DayAssistantPage() {
     // If hit, kill the Demon
     if (result.type === 'slayer-hit') {
       await supabase.from('players').update({ is_alive: false }).eq('id', slayerTargetId);
-      setPlayers((prev) => prev.map((p) => p.id === slayerTargetId ? { ...p, is_alive: false } : p));
+      const updatedPlayers = players.map((p) => p.id === slayerTargetId ? { ...p, is_alive: false } : p);
+      setPlayers(updatedPlayers);
+      // Demon is dead — check for Good win
+      const win = detectWinCondition(updatedPlayers);
+      if (win) setWinAlert(win);
     }
 
     void recordEvent({
@@ -349,6 +361,18 @@ export function DayAssistantPage() {
         requiresConfirmation: true,
       });
     }
+  };
+
+  const handleEndGame = async (outcome: 'good' | 'evil' | 'cancelled') => {
+    if (!room) return;
+    setEndingGame(true);
+    const endedAt = new Date().toISOString();
+    await supabase
+      .from('rooms')
+      .update({ status: 'completed', outcome, ended_at: endedAt })
+      .eq('id', roomId);
+    setEndingGame(false);
+    navigate('/win');
   };
 
   const handleSaveNotes = async () => {
@@ -671,6 +695,37 @@ export function DayAssistantPage() {
           </section>
         )}
       </main>
+
+      {/* ── Win Condition Alert ── */}
+      {winAlert && (
+        <div className="modal-overlay">
+          <div className="modal-card win-alert-modal">
+            <div className={`win-alert-badge win-alert-badge--${winAlert.outcome}`}>
+              {winAlert.outcome === 'good' ? 'Good Wins' : 'Evil Wins'}
+            </div>
+            <h2 className="modal-title">Win Condition Detected</h2>
+            <p className="modal-subtitle win-alert-reason">{winAlert.reason}</p>
+            <p className="win-alert-hint">
+              Confirm to end the game, or continue if this was triggered by error.
+            </p>
+            <div className="end-game-options">
+              <button
+                className={`btn end-game-btn ${winAlert.outcome === 'good' ? 'end-game-good' : 'end-game-evil'}`}
+                onClick={() => { setWinAlert(null); void handleEndGame(winAlert.outcome); }}
+                disabled={endingGame}
+              >
+                End Game — {winAlert.outcome === 'good' ? 'Good Wins' : 'Evil Wins'}
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={() => setWinAlert(null)}
+              >
+                Continue Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Player detail panel ── */}
       {selectedPlayer && (
