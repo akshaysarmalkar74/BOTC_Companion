@@ -2020,6 +2020,11 @@ button, select, input, textarea {
   font-weight: 500;
 }
 
+.step-select-hint--muted {
+  font-style: italic;
+  opacity: 0.7;
+}
+
 .step-player-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -2052,6 +2057,16 @@ button, select, input, textarea {
 .step-player-btn.is-selected { border-color: var(--accent); background: var(--accent-dim); }
 .step-player-btn.is-dead     { opacity: 0.4; }
 .step-player-btn.is-dimmed   { opacity: 0.3; pointer-events: none; }
+
+/* Info-only card — same look but not interactive */
+.step-player-btn--info {
+  cursor: default;
+  pointer-events: none;
+  border-color: rgba(216, 136, 64, 0.4);
+  background: rgba(216, 136, 64, 0.06);
+}
+
+.step-demon-minions { display: flex; flex-direction: column; gap: 6px; }
 
 .step-player-name {
   font-size: 0.9375rem;
@@ -2243,6 +2258,13 @@ button, select, input, textarea {
   font-size: 1.125rem;
   font-weight: 700;
   padding: 10px 20px;
+}
+
+.reveal-divider {
+  width: 100%;
+  border: none;
+  border-top: 1px solid rgba(255, 252, 242, 0.12);
+  margin: 4px 0;
 }
 
 .reveal-dismiss {

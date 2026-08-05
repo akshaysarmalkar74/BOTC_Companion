@@ -355,18 +355,29 @@ export function NightAssistantPage() {
     ? players.find((p) => p.role === currentStep.characterId) ?? null
     : null;
 
-  // Demon bluffs: roles in the script that are NOT assigned to any player
+  // Demon bluffs: ALL Trouble Brewing roles NOT assigned to any player
   const assignedRoles = new Set(players.map((p) => p.role).filter(Boolean));
   const scriptIds = room && Array.isArray(room.script) ? (room.script as string[]) : [];
-  const bluffPool = TROUBLE_BREWING.filter(
-    (c) => scriptIds.includes(c.id) && !assignedRoles.has(c.id)
-  );
+  const bluffPool = TROUBLE_BREWING.filter((c) => !assignedRoles.has(c.id));
 
-  // Role reveal: all roles of the required team present in the script
-  const roleRevealPool = currentStep.roleRevealTeam
-    ? TROUBLE_BREWING.filter(
-        (c) => c.team === currentStep.roleRevealTeam && scriptIds.includes(c.id)
-      )
+  // Demon step: players with minion roles
+  const minionPlayers = currentStep?.isDemonInfo
+    ? players.filter((p) => {
+        const char = p.role ? TROUBLE_BREWING.find((c) => c.id === p.role) : null;
+        return char?.team === 'minion';
+      })
+    : [];
+
+  // Role reveal: only roles of the SELECTED players that match the required team.
+  // This way the picker is hidden until the ST selects players, and only shows
+  // relevant options (e.g. the actual Townsfolk among the two chosen players).
+  const roleRevealPool = currentStep.roleRevealTeam && localTargets.length > 0
+    ? TROUBLE_BREWING.filter((c) => {
+        const selectedRoles = localTargets
+          .map((id) => players.find((p) => p.id === id)?.role)
+          .filter(Boolean) as string[];
+        return c.team === currentStep.roleRevealTeam && selectedRoles.includes(c.id);
+      })
     : [];
 
   const doneLabel = saving
@@ -500,6 +511,27 @@ export function NightAssistantPage() {
           {/* Demon bluffs */}
           {currentStep.isDemonInfo && (
             <div className="step-bluff-section">
+              {/* Minion players — point to them so the Demon sees their allies */}
+              {minionPlayers.length > 0 && (
+                <div className="step-demon-minions">
+                  <p className="step-select-hint">Point to these Minion players:</p>
+                  <div className="step-player-grid">
+                    {minionPlayers.map((p) => {
+                      const char = p.role
+                        ? TROUBLE_BREWING.find((c) => c.id === p.role) ?? null
+                        : null;
+                      return (
+                        <div key={p.id} className="step-player-btn step-player-btn--info">
+                          <span className="step-player-name">{p.display_name}</span>
+                          {char && (
+                            <span className="step-player-role">{char.name}</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               <p className="step-select-hint">
                 Select 3 bluff roles to show the Demon
                 {localBluffs.length > 0 ? ` · ${localBluffs.length} / 3 selected` : ''}
@@ -545,32 +577,45 @@ export function NightAssistantPage() {
           )}
 
           {/* Role reveal (Washerwoman / Librarian / Investigator) */}
-          {currentStep.roleRevealTeam && roleRevealPool.length > 0 && (
+          {currentStep.roleRevealTeam && (
             <div className="step-role-reveal-section">
-              <p className="step-select-hint">
-                Which {currentStep.roleRevealTeam} role token are you showing?
-              </p>
-              <div className="step-role-reveal-grid">
-                {roleRevealPool.map((c) => {
-                  const sel = localRoleId === c.id;
-                  return (
+              {localTargets.length === 0 ? (
+                <p className="step-select-hint step-select-hint--muted">
+                  Select players above, then choose which role token to show.
+                </p>
+              ) : roleRevealPool.length === 0 ? (
+                <p className="step-select-hint step-select-hint--muted">
+                  None of the selected players has a matching {currentStep.roleRevealTeam} role —
+                  choose different players or skip this step.
+                </p>
+              ) : (
+                <>
+                  <p className="step-select-hint">
+                    Which {currentStep.roleRevealTeam} role token are you showing?
+                  </p>
+                  <div className="step-role-reveal-grid">
+                    {roleRevealPool.map((c) => {
+                      const sel = localRoleId === c.id;
+                      return (
+                        <button
+                          key={c.id}
+                          className={['step-role-chip', sel && 'is-selected'].filter(Boolean).join(' ')}
+                          onClick={() => setLocalRoleId(sel ? '' : c.id)}
+                        >
+                          {c.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {localRoleId && (
                     <button
-                      key={c.id}
-                      className={['step-role-chip', sel && 'is-selected'].filter(Boolean).join(' ')}
-                      onClick={() => setLocalRoleId(sel ? '' : c.id)}
+                      className="btn btn-primary reveal-show-btn"
+                      onClick={() => setShowReveal(true)}
                     >
-                      {c.name}
+                      Show role card to {charPlayer?.display_name ?? 'player'} →
                     </button>
-                  );
-                })}
-              </div>
-              {localRoleId && (
-                <button
-                  className="btn btn-primary reveal-show-btn"
-                  onClick={() => setShowReveal(true)}
-                >
-                  Show {charPlayer?.display_name ?? 'Player'} →
-                </button>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -603,6 +648,17 @@ export function NightAssistantPage() {
               {/* Demon bluffs reveal */}
               {currentStep.isDemonInfo && (
                 <>
+                  {minionPlayers.length > 0 && (
+                    <>
+                      <p className="reveal-eyebrow">Your Minions</p>
+                      <div className="reveal-players">
+                        {minionPlayers.map((p) => (
+                          <div key={p.id} className="reveal-player-chip">{p.display_name}</div>
+                        ))}
+                      </div>
+                      <div className="reveal-divider" />
+                    </>
+                  )}
                   <p className="reveal-eyebrow">Your bluff roles</p>
                   <h2 className="reveal-title">These roles are not in play</h2>
                   <p className="reveal-sub">You may safely claim to be any of these characters.</p>
@@ -643,7 +699,7 @@ export function NightAssistantPage() {
               )}
 
               <button className="reveal-dismiss" onClick={() => setShowReveal(false)}>
-                Tap to dismiss
+                Put them back to sleep
               </button>
             </div>
           </div>
