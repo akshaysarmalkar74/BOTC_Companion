@@ -361,6 +361,13 @@ export function NightAssistantPage() {
         ?? null)
     : null;
 
+  // For the Scarlet Woman succession step, the reveal shows the IMP card (not SW card)
+  // because she is being promoted — the Storyteller holds up the Imp token to her.
+  const isSWSuccessionStep = currentStep.characterId === 'scarlet-woman';
+  const showRoleCharDef = isSWSuccessionStep
+    ? (TROUBLE_BREWING.find((c) => c.id === 'imp') ?? charDef)
+    : charDef;
+
   // Status flags for the acting player — affects ability outcome
   const isCharPlayerDrunk    = charPlayer?.role === 'drunk';
   const isCharPlayerPoisoned = charPlayer
@@ -481,12 +488,14 @@ export function NightAssistantPage() {
                     <span className="step-status-badge step-status-badge--poisoned">Poisoned</span>
                   )}
                 </p>
-                {charDef && (
+                {showRoleCharDef && (
                   <button
                     className="btn btn-secondary step-show-role-btn"
                     onClick={() => setShowPlayerRole(true)}
                   >
-                    Show role to {charPlayer.display_name} →
+                    {isSWSuccessionStep
+                      ? `Tell ${charPlayer.display_name} she's the new Demon →`
+                      : `Show role to ${charPlayer.display_name} →`}
                   </button>
                 )}
               </>
@@ -681,15 +690,17 @@ export function NightAssistantPage() {
       </main>
 
       {/* ── Player role reveal overlay ── */}
-      {showPlayerRole && charDef && charPlayer && (
+      {showPlayerRole && showRoleCharDef && charPlayer && (
         <div className="reveal-overlay" onClick={() => setShowPlayerRole(false)}>
           <div className="reveal-content" onClick={(e) => e.stopPropagation()}>
-            <p className="reveal-eyebrow">Your role</p>
+            <p className="reveal-eyebrow">
+              {isSWSuccessionStep ? 'You are now the Demon' : 'Your role'}
+            </p>
             <h2 className="reveal-title">{charPlayer.display_name}</h2>
-            <div className={`reveal-role-card reveal-role-card--${charDef.team} reveal-role-card--solo`}>
-              <span className="reveal-role-name">{charDef.name}</span>
-              <span className="reveal-role-team">{TEAM_LABELS[charDef.team]}</span>
-              <p className="reveal-role-ability">{charDef.ability}</p>
+            <div className={`reveal-role-card reveal-role-card--${showRoleCharDef.team} reveal-role-card--solo`}>
+              <span className="reveal-role-name">{showRoleCharDef.name}</span>
+              <span className="reveal-role-team">{TEAM_LABELS[showRoleCharDef.team]}</span>
+              <p className="reveal-role-ability">{showRoleCharDef.ability}</p>
             </div>
             <button className="reveal-dismiss" onClick={() => setShowPlayerRole(false)}>
               Put them back to sleep
