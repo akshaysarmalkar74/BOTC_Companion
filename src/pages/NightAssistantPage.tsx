@@ -29,6 +29,7 @@ export function NightAssistantPage() {
   const [localBluffs, setLocalBluffs]       = useState<string[]>([]);
   const [localRoleId, setLocalRoleId]       = useState('');
   const [showReveal, setShowReveal]         = useState(false);
+  const [showPlayerRole, setShowPlayerRole] = useState(false);
   const [showProgress, setShowProgress]     = useState(false);
   const [saving, setSaving]                 = useState(false);
   const [loading, setLoading]               = useState(true);
@@ -146,6 +147,7 @@ export function NightAssistantPage() {
 
   function loadStepState(stepKey: string) {
     setShowReveal(false);
+    setShowPlayerRole(false);
     const saved = nightActions.find((a) => a.step_key === stepKey);
     setLocalTargets(saved?.target_ids ?? []);
     if (saved?.notes) {
@@ -469,15 +471,25 @@ export function NightAssistantPage() {
             )}
             <h2 className="step-char-name">{currentStep.label}</h2>
             {charPlayer && (
-              <p className="step-player-label">
-                Wake <strong>{charPlayer.display_name}</strong>
-                {isCharPlayerDrunk && (
-                  <span className="step-status-badge step-status-badge--drunk">Drunk</span>
+              <>
+                <p className="step-player-label">
+                  Wake <strong>{charPlayer.display_name}</strong>
+                  {isCharPlayerDrunk && (
+                    <span className="step-status-badge step-status-badge--drunk">Drunk</span>
+                  )}
+                  {isCharPlayerPoisoned && (
+                    <span className="step-status-badge step-status-badge--poisoned">Poisoned</span>
+                  )}
+                </p>
+                {charDef && (
+                  <button
+                    className="btn btn-secondary step-show-role-btn"
+                    onClick={() => setShowPlayerRole(true)}
+                  >
+                    Show role to {charPlayer.display_name} →
+                  </button>
                 )}
-                {isCharPlayerPoisoned && (
-                  <span className="step-status-badge step-status-badge--poisoned">Poisoned</span>
-                )}
-              </p>
+              </>
             )}
           </div>
 
@@ -667,6 +679,24 @@ export function NightAssistantPage() {
           </div>
         </div>
       </main>
+
+      {/* ── Player role reveal overlay ── */}
+      {showPlayerRole && charDef && charPlayer && (
+        <div className="reveal-overlay" onClick={() => setShowPlayerRole(false)}>
+          <div className="reveal-content" onClick={(e) => e.stopPropagation()}>
+            <p className="reveal-eyebrow">Your role</p>
+            <h2 className="reveal-title">{charPlayer.display_name}</h2>
+            <div className={`reveal-role-card reveal-role-card--${charDef.team} reveal-role-card--solo`}>
+              <span className="reveal-role-name">{charDef.name}</span>
+              <span className="reveal-role-team">{TEAM_LABELS[charDef.team]}</span>
+              <p className="reveal-role-ability">{charDef.ability}</p>
+            </div>
+            <button className="reveal-dismiss" onClick={() => setShowPlayerRole(false)}>
+              Put them back to sleep
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Reveal overlay ── */}
       {showReveal && (() => {
