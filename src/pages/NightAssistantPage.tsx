@@ -30,6 +30,7 @@ export function NightAssistantPage() {
   const [localRoleId, setLocalRoleId]       = useState('');
   const [showReveal, setShowReveal]         = useState(false);
   const [showPlayerRole, setShowPlayerRole] = useState(false);
+  const [executedPlayerId, setExecutedPlayerId] = useState<string | null>(null);
   const [showProgress, setShowProgress]     = useState(false);
   const [saving, setSaving]                 = useState(false);
   const [loading, setLoading]               = useState(true);
@@ -64,7 +65,9 @@ export function NightAssistantPage() {
       const nightNum = getNightNumber(r.phase);
       const isFirst = nightNum === 1 && r.phase.startsWith('Night');
 
-      const [{ data: playerData }, { data: tokenData }, { data: actionData }] =
+      const prevDayNum = nightNum - 1; // day that preceded this night (0 on Night 1)
+
+      const [{ data: playerData }, { data: tokenData }, { data: actionData }, { data: execData }] =
         await Promise.all([
           supabase
             .from('players')
@@ -83,6 +86,16 @@ export function NightAssistantPage() {
             .select('id, room_id, night_number, step_key, target_ids, notes, created_at, updated_at')
             .eq('room_id', roomId)
             .eq('night_number', nightNum),
+          prevDayNum > 0
+            ? supabase
+                .from('day_events')
+                .select('payload')
+                .eq('room_id', roomId)
+                .eq('day_number', prevDayNum)
+                .eq('event_type', 'execution')
+                .limit(1)
+                .maybeSingle()
+            : Promise.resolve({ data: null }),
         ]);
 
       const loadedPlayers  = (playerData  ?? []) as Player[];
@@ -108,6 +121,9 @@ export function NightAssistantPage() {
       setReminderTokens(loadedTokens);
       setNightActions(loadedActions);
 
+      const execId = (execData as { payload?: { player_id?: string } } | null)?.payload?.player_id ?? null;
+      setExecutedPlayerId(execId);
+
       const scriptIds = Array.isArray(r.script) ? (r.script as string[]) : [];
       const steps = computeActiveSteps(scriptIds, loadedPlayers, isFirst);
       setActiveSteps(steps);
@@ -120,7 +136,11 @@ export function NightAssistantPage() {
         if (idx >= 0) {
           setCurrentIndex(idx);
           const saved = loadedActions.find((a) => a.step_key === r.night_step_key);
-          setLocalTargets(saved?.target_ids ?? []);
+          // Auto-populate Undertaker target if not yet saved
+          const defaultTargets = (r.night_step_key === 'undertaker' && !saved && execId)
+            ? [execId]
+            : (saved?.target_ids ?? []);
+          setLocalTargets(defaultTargets);
           if (saved?.notes) {
             try {
               const parsed = JSON.parse(saved.notes);
@@ -242,6 +262,11 @@ export function NightAssistantPage() {
       const nextStep = activeSteps[nextIdx];
       setCurrentIndex(nextIdx);
       loadStepState(nextStep.key);
+      // Auto-populate Undertaker target with the executed player
+      if (nextStep.key === 'undertaker' && executedPlayerId) {
+        const alreadySaved = nightActions.find((a) => a.step_key === 'undertaker');
+        if (!alreadySaved) setLocalTargets([executedPlayerId]);
+      }
       await persistStepKey(nextStep.key);
     }
   }
@@ -360,6 +385,16 @@ export function NightAssistantPage() {
         ?? players.find((p) => p.drunk_role === currentStep.characterId)
         ?? null)
     : null;
+
+  // ── Undertaker: executed player info ─────────────────────────────────
+  const isUndertakerStep   = currentStep.characterId === 'undertaker';
+  const executedPlayer     = executedPlayerId ? players.find((p) => p.id === executedPlayerId) ?? null : null;
+  const executedCharDef    = executedPlayer?.role
+    ? TROUBLE_BREWING.find((c) => c.id === executedPlayer.role) ?? null
+    : null;
+
+  // ── Spy: show full grimoire ───────────────────────────────────────────
+  const isSpyStep = currentStep.characterId === 'spy';
 
   // For the Scarlet Woman succession step, the reveal shows the IMP card (not SW card)
   // because she is being promoted — the Storyteller holds up the Imp token to her.
@@ -511,6 +546,59 @@ export function NightAssistantPage() {
 
           {/* Instruction */}
           <p className="step-instruction">{currentStep.instruction}</p>
+
+          {/* Undertaker: executed player info panel */}
+          {isUndertakerStep && (
+            executedPlayer && executedCharDef ? (
+              <div className={`step-info-panel step-info-panel--${executedCharDef.team}`}>
+                <p className="step-info-panel-label">Yesterday's execution</p>
+                <p className="step-info-panel-name">{executedPlayer.display_name}</p>
+                <p className={`step-info-panel-role team-color-${executedCharDef.team}`}>
+                  {executedCharDef.name}
+                  <span className="step-info-panel-team"> · {executedCharDef.team}</span>
+                </p>
+              </div>
+            ) : (
+              <div className="step-info-panel step-info-panel--muted">
+                <p className="step-info-panel-label">No execution recorded for the previous day.</p>
+                <p className="step-info-panel-hint">Skip this step if nobody was executed.</p>
+              </div>
+            )
+          )}
+
+          {/* Spy: full grimoire panel */}
+          {isSpyStep && (
+            <div className="step-grimoire">
+              <p className="step-select-hint">Show the Spy this Grimoire:</p>
+              <div className="step-grimoire-list">
+                {players.map((p) => {
+                  const pChar = p.role ? TROUBLE_BREWING.find((c) => c.id === p.role) ?? null : null;
+                  const pTokens = reminderTokens.filter((t) => t.player_id === p.id);
+                  return (
+                    <div
+                      key={p.id}
+                      className={`step-grimoire-row${!p.is_alive ? ' is-dead' : ''}`}
+                    >
+                      <span className="step-grimoire-name">
+                        {p.display_name}
+                        {!p.is_alive && <span className="step-grimoire-dead"> †</span>}
+                      </span>
+                      <span className={`step-grimoire-role team-color-${pChar?.team ?? ''}`}>
+                        {pChar?.name ?? p.role ?? '?'}
+                      </span>
+                      {pTokens.length > 0 && (
+                        <span className="step-grimoire-tokens">
+                          {pTokens.map((t) => (
+                            <span key={t.id} className="step-grimoire-token">{t.token_key}</span>
+                          ))}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Player selection */}
           {currentStep.targetCount > 0 && (
