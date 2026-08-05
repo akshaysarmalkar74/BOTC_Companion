@@ -145,34 +145,52 @@ button, select, input, textarea {
    ══════════════════════════════════════════════════════════ */
 
 .landing-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 24px;
+  background: linear-gradient(165deg, var(--ink-2) 0%, var(--ink) 100%);
+  border: 1px solid rgba(184, 134, 59, 0.22);
+  border-top: 2px solid rgba(224, 171, 90, 0.55);
+  border-radius: 20px;
   padding: 52px 36px 44px;
   width: 100%;
   max-width: 380px;
-  box-shadow: var(--shadow);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.70),
+    inset 0 1px 0 rgba(224, 171, 90, 0.08);
 }
 
 .landing-title {
   font-family: var(--font-display);
-  font-size: 1.5rem;
+  font-size: 1.625rem;
   font-weight: 700;
   text-align: center;
-  letter-spacing: 0.5px;
-  line-height: 1.25;
-  color: var(--text);
+  letter-spacing: 2px;
+  line-height: 1.2;
+  color: var(--parchment);
 }
 
 .landing-subtitle {
-  text-align: center;
-  color: var(--accent);
-  font-size: 0.6875rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--gold);
+  font-size: 0.625rem;
   letter-spacing: 5px;
   text-transform: uppercase;
-  margin-top: 6px;
+  margin-top: 10px;
   margin-bottom: 40px;
   font-weight: 600;
+  font-family: var(--font-display);
+}
+
+.landing-subtitle::before,
+.landing-subtitle::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(184, 134, 59, 0.40));
+}
+
+.landing-subtitle::after {
+  background: linear-gradient(to left, transparent, rgba(184, 134, 59, 0.40));
 }
 
 .landing-actions {
@@ -186,13 +204,16 @@ button, select, input, textarea {
    ══════════════════════════════════════════════════════════ */
 
 .form-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 20px;
+  background: linear-gradient(165deg, var(--ink-2) 0%, var(--ink) 100%);
+  border: 1px solid rgba(184, 134, 59, 0.22);
+  border-top: 2px solid rgba(224, 171, 90, 0.50);
+  border-radius: 18px;
   padding: 36px 28px;
   width: 100%;
   max-width: 420px;
-  box-shadow: var(--shadow);
+  box-shadow:
+    0 20px 56px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(224, 171, 90, 0.07);
 }
 
 .form-title {
@@ -200,7 +221,8 @@ button, select, input, textarea {
   font-size: 1.25rem;
   font-weight: 700;
   margin-bottom: 24px;
-  letter-spacing: 0.3px;
+  letter-spacing: 1.5px;
+  color: var(--parchment);
 }
 
 .form {
@@ -269,14 +291,14 @@ button, select, input, textarea {
   width: 100%;
   min-height: 52px;
   padding: 13px 24px;
-  border-radius: 14px;
+  border-radius: 100px;
   font-size: 0.9375rem;
-  font-weight: 700;
-  font-family: var(--font-sans);
+  font-weight: 600;
+  font-family: var(--font-display);
   border: none;
   cursor: pointer;
   transition: background 0.15s, opacity 0.15s, transform 0.1s, box-shadow 0.15s;
-  letter-spacing: 0.3px;
+  letter-spacing: 1px;
   text-align: center;
 }
 
@@ -709,18 +731,19 @@ button, select, input, textarea {
 
 .character-card {
   position: relative;
-  background: var(--surface);
-  border: 1px solid var(--border-mid);
+  background: linear-gradient(135deg, var(--ink-2) 0%, var(--ink) 100%);
+  border: 1px solid rgba(184, 134, 59, 0.18);
   border-radius: var(--radius-sm);
   overflow: hidden;
   display: flex;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 
 .character-card.is-interactive { cursor: pointer; }
 
 .character-card.is-interactive:hover {
-  border-color: rgba(0, 0, 0, 0.15);
+  border-color: rgba(184, 134, 59, 0.40);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
 }
 
 .character-card.is-selected {
@@ -734,17 +757,33 @@ button, select, input, textarea {
 }
 
 /* Left-edge colour bar */
-.card-team-bar { width: 3px; flex-shrink: 0; }
+.card-team-bar { width: 4px; flex-shrink: 0; }
 
 .team-townsfolk .card-team-bar { background: var(--team-townsfolk); }
 .team-outsider  .card-team-bar { background: var(--team-outsider); }
 .team-minion    .card-team-bar { background: var(--team-minion); }
 .team-demon     .card-team-bar { background: var(--team-demon); }
 
-.character-card.is-selected.team-townsfolk { border-color: var(--team-townsfolk); background: var(--team-townsfolk-dim); }
-.character-card.is-selected.team-outsider  { border-color: var(--team-outsider);  background: var(--team-outsider-dim); }
-.character-card.is-selected.team-minion    { border-color: var(--team-minion);    background: var(--team-minion-dim); }
-.character-card.is-selected.team-demon     { border-color: var(--team-demon);     background: var(--team-demon-dim); }
+.character-card.is-selected.team-townsfolk {
+  border-color: var(--team-townsfolk);
+  background: var(--team-townsfolk-dim);
+  box-shadow: 0 0 16px rgba(79, 168, 154, 0.12);
+}
+.character-card.is-selected.team-outsider {
+  border-color: var(--team-outsider);
+  background: var(--team-outsider-dim);
+  box-shadow: 0 0 16px rgba(151, 149, 196, 0.12);
+}
+.character-card.is-selected.team-minion {
+  border-color: var(--team-minion);
+  background: var(--team-minion-dim);
+  box-shadow: 0 0 16px rgba(194, 59, 70, 0.12);
+}
+.character-card.is-selected.team-demon {
+  border-color: var(--team-demon);
+  background: var(--team-demon-dim);
+  box-shadow: 0 0 16px rgba(230, 57, 74, 0.15);
+}
 
 .card-body {
   padding: 12px 14px 12px 12px;
@@ -966,11 +1005,13 @@ button, select, input, textarea {
 /* ── Setup panel ── */
 
 .setup-panel {
-  background: var(--surface);
-  border: 1px solid var(--border-mid);
+  background: linear-gradient(165deg, var(--ink-2) 0%, var(--ink) 100%);
+  border: 1px solid rgba(184, 134, 59, 0.20);
+  border-top: 2px solid rgba(184, 134, 59, 0.40);
   border-radius: var(--radius);
   padding: 18px 20px;
   margin-bottom: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.40);
 }
 
 .setup-warning {
@@ -1276,25 +1317,34 @@ button, select, input, textarea {
 .role-reveal-card {
   width: 100%;
   max-width: 440px;
-  background: var(--surface);
-  border-radius: var(--radius);
+  background: linear-gradient(165deg, var(--ink-2) 0%, var(--ink) 100%);
+  border-radius: 20px;
   overflow: hidden;
-  border: 1px solid var(--border-mid);
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(184, 134, 59, 0.22);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.70),
+    inset 0 1px 0 rgba(224, 171, 90, 0.06);
 }
 
-.reveal-top-bar { height: 5px; }
+/* Team-colored top bar — thick and glowing */
+.reveal-top-bar { height: 6px; }
 
-.team-townsfolk .reveal-top-bar { background: var(--team-townsfolk); }
-.team-outsider  .reveal-top-bar { background: var(--team-outsider); }
-.team-minion    .reveal-top-bar { background: var(--team-minion); }
-.team-demon     .reveal-top-bar { background: var(--team-demon); }
+.team-townsfolk .reveal-top-bar { background: var(--team-townsfolk); box-shadow: 0 0 12px rgba(79, 168, 154, 0.55); }
+.team-outsider  .reveal-top-bar { background: var(--team-outsider);  box-shadow: 0 0 12px rgba(151, 149, 196, 0.55); }
+.team-minion    .reveal-top-bar { background: var(--team-minion);    box-shadow: 0 0 12px rgba(194, 59, 70, 0.55); }
+.team-demon     .reveal-top-bar { background: var(--team-demon);     box-shadow: 0 0 12px rgba(230, 57, 74, 0.65); }
+
+/* Team-colored outer glow on the card */
+.team-townsfolk.role-reveal-card { border-color: rgba(79, 168, 154, 0.35); box-shadow: 0 24px 64px rgba(0,0,0,0.65), 0 0 32px rgba(79, 168, 154, 0.12); }
+.team-outsider.role-reveal-card  { border-color: rgba(151, 149, 196, 0.35); box-shadow: 0 24px 64px rgba(0,0,0,0.65), 0 0 32px rgba(151, 149, 196, 0.12); }
+.team-minion.role-reveal-card    { border-color: rgba(194, 59, 70, 0.35);   box-shadow: 0 24px 64px rgba(0,0,0,0.65), 0 0 32px rgba(194, 59, 70, 0.12); }
+.team-demon.role-reveal-card     { border-color: rgba(230, 57, 74, 0.45);   box-shadow: 0 24px 64px rgba(0,0,0,0.65), 0 0 40px rgba(230, 57, 74, 0.18); }
 
 .reveal-body {
-  padding: 32px 28px 28px;
+  padding: 32px 28px 32px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 20px;
 }
 
 .reveal-team-badge { align-self: flex-start; font-size: 0.75rem; }
@@ -1308,23 +1358,24 @@ button, select, input, textarea {
 }
 
 .reveal-ability-box {
-  background: var(--surface-high);
-  border: 1px solid var(--border-mid);
+  background: rgba(0, 0, 0, 0.30);
+  border: 1px solid rgba(184, 134, 59, 0.20);
+  border-left: 3px solid rgba(184, 134, 59, 0.45);
   border-radius: var(--radius-sm);
   padding: 16px 18px;
 }
 
 .reveal-ability {
-  font-size: 1rem;
-  line-height: 1.6;
-  color: var(--text);
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--parchment);
   font-style: italic;
 }
 
 .reveal-description {
-  font-size: 0.875rem;
-  color: var(--text-dim);
-  line-height: 1.65;
+  font-size: 0.9375rem;
+  color: var(--parchment-dim);
+  line-height: 1.7;
 }
 
 .reveal-hide-btn {
@@ -1448,9 +1499,10 @@ button, select, input, textarea {
   padding-left:  max(14px, var(--safe-l));
   padding-right: max(14px, var(--safe-r));
   padding-top:   max(10px, var(--safe-t));
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  border-bottom: 1px solid rgba(184, 134, 59, 0.20);
+  background: linear-gradient(180deg, var(--ink-2) 0%, var(--ink) 100%);
   flex-shrink: 0;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.40);
 }
 
 .grimoire-circle-area {
@@ -1616,8 +1668,8 @@ button, select, input, textarea {
   left: 0;
   right: 0;
   z-index: 201;
-  background: var(--surface-high);
-  border-top: 1px solid var(--border-mid);
+  background: linear-gradient(0deg, var(--ink) 0%, var(--ink-2) 100%);
+  border-top: 2px solid rgba(184, 134, 59, 0.40);
   border-radius: var(--radius) var(--radius) 0 0;
   padding: 20px 20px calc(20px + var(--safe-b));
   padding-left:  max(20px, var(--safe-l));
@@ -1627,7 +1679,7 @@ button, select, input, textarea {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.60);
 }
 
 .panel-header {
@@ -2062,11 +2114,12 @@ button, select, input, textarea {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: linear-gradient(165deg, var(--ink-2) 0%, var(--ink) 100%);
+  border: 1px solid rgba(184, 134, 59, 0.20);
+  border-top: 2px solid rgba(151, 149, 196, 0.45);
   border-radius: 20px;
-  padding: 24px 20px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+  padding: 28px 22px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.50);
 }
 
 .step-char-header {
@@ -2944,10 +2997,12 @@ button, select, input, textarea {
 /* ── Section ── */
 
 .resolve-section {
-  background: var(--surface);
-  border: 1px solid var(--border-mid);
+  background: linear-gradient(165deg, var(--ink-2) 0%, var(--ink) 100%);
+  border: 1px solid rgba(184, 134, 59, 0.18);
+  border-top: 2px solid rgba(184, 134, 59, 0.35);
   border-radius: var(--radius);
   padding: 18px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
 }
 
 .resolve-section-title {
@@ -3602,8 +3657,9 @@ button, select, input, textarea {
 }
 
 .modal-card {
-  background: var(--surface);
-  border: 1px solid var(--border-mid);
+  background: linear-gradient(165deg, var(--ink-2) 0%, var(--ink) 100%);
+  border: 1px solid rgba(184, 134, 59, 0.22);
+  border-top: 2px solid rgba(224, 171, 90, 0.50);
   border-radius: var(--radius);
   padding: 28px 24px;
   max-width: 380px;
@@ -3611,7 +3667,9 @@ button, select, input, textarea {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.70),
+    inset 0 1px 0 rgba(224, 171, 90, 0.06);
 }
 
 .modal-title {
@@ -4034,8 +4092,8 @@ button, select, input, textarea {
 }
 
 .win-player-card {
-  background: var(--surface);
-  border: 1.5px solid var(--border);
+  background: linear-gradient(135deg, var(--ink-2) 0%, var(--ink) 100%);
+  border: 1.5px solid rgba(184, 134, 59, 0.18);
   border-radius: 14px;
   padding: 14px 14px 12px;
   display: flex;
@@ -4044,11 +4102,28 @@ button, select, input, textarea {
   transition: box-shadow 0.15s;
 }
 
-.win-player-card--townsfolk { border-color: rgba(79, 168, 154, 0.45);  background: rgba(79, 168, 154, 0.07); }
-.win-player-card--outsider  { border-color: rgba(151, 149, 196, 0.45); background: rgba(151, 149, 196, 0.07); }
-.win-player-card--minion    { border-color: rgba(194, 59, 70, 0.45);   background: rgba(194, 59, 70, 0.07); }
-.win-player-card--demon     { border-color: rgba(230, 57, 74, 0.60);   background: rgba(230, 57, 74, 0.10); border-width: 2px; }
-.win-player-card--dead      { opacity: 0.55; }
+.win-player-card--townsfolk {
+  border-color: rgba(79, 168, 154, 0.40);
+  background: linear-gradient(135deg, rgba(79, 168, 154, 0.10) 0%, var(--ink) 100%);
+  box-shadow: 0 0 16px rgba(79, 168, 154, 0.08);
+}
+.win-player-card--outsider {
+  border-color: rgba(151, 149, 196, 0.40);
+  background: linear-gradient(135deg, rgba(151, 149, 196, 0.10) 0%, var(--ink) 100%);
+  box-shadow: 0 0 16px rgba(151, 149, 196, 0.08);
+}
+.win-player-card--minion {
+  border-color: rgba(194, 59, 70, 0.40);
+  background: linear-gradient(135deg, rgba(194, 59, 70, 0.10) 0%, var(--ink) 100%);
+  box-shadow: 0 0 16px rgba(194, 59, 70, 0.08);
+}
+.win-player-card--demon {
+  border-color: rgba(230, 57, 74, 0.55);
+  border-width: 2px;
+  background: linear-gradient(135deg, rgba(230, 57, 74, 0.14) 0%, var(--ink) 100%);
+  box-shadow: 0 0 24px rgba(230, 57, 74, 0.15);
+}
+.win-player-card--dead { opacity: 0.50; }
 
 .win-player-header {
   display: flex;
