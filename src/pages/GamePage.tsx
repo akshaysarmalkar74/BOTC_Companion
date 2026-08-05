@@ -19,7 +19,6 @@ export function GamePage() {
   const [loading, setLoading]               = useState(true);
   const [showEndModal, setShowEndModal]     = useState(false);
   const [endingGame, setEndingGame]         = useState(false);
-  const [rematchWorking, setRematchWorking] = useState(false);
   const navigate = useNavigate();
 
   const session = loadSession();
@@ -252,32 +251,6 @@ export function GamePage() {
     void recordGameEnd(roomId, room.phase, outcome, allPlayers);
     setEndingGame(false);
     navigate('/win');
-  };
-
-  const handleRematch = async () => {
-    if (!room) return;
-    setRematchWorking(true);
-    // Clear all game-specific data for this room
-    await Promise.all([
-      supabase.from('night_actions').delete().eq('room_id', roomId),
-      supabase.from('day_events').delete().eq('room_id', roomId),
-      supabase.from('day_notes').delete().eq('room_id', roomId),
-      supabase.from('reminder_tokens').delete().eq('room_id', roomId),
-      supabase.from('game_events').delete().eq('room_id', roomId),
-    ]);
-    // Reset all players
-    await supabase
-      .from('players')
-      .update({ role: null, is_alive: true, ghost_vote_used: false, notes: '' })
-      .eq('room_id', roomId)
-      .eq('is_host', false);
-    // Reset room to lobby
-    await supabase
-      .from('rooms')
-      .update({ status: 'lobby', phase: 'Night 1', outcome: null, ended_at: null, night_step_key: null })
-      .eq('id', roomId);
-    setRematchWorking(false);
-    navigate('/assign');
   };
 
   // ── Render ─────────────────────────────────────────────────────────

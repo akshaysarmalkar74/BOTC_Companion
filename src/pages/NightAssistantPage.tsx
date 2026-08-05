@@ -357,7 +357,6 @@ export function NightAssistantPage() {
 
   // Demon bluffs: ALL Trouble Brewing roles NOT assigned to any player
   const assignedRoles = new Set(players.map((p) => p.role).filter(Boolean));
-  const scriptIds = room && Array.isArray(room.script) ? (room.script as string[]) : [];
   const bluffPool = TROUBLE_BREWING.filter((c) => !assignedRoles.has(c.id));
 
   // Demon step: players with minion roles

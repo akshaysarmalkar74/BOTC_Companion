@@ -25,6 +25,8 @@ export function makePlayer(overrides: Partial<Player> & { role: string }): Playe
     ghost_vote_used: false,
     notes:           '',
     created_at:      '2024-01-01T00:00:00Z',
+    is_bot:          false,
+    drunk_role:      null,
   };
   return { ...base, ...overrides };
 }
