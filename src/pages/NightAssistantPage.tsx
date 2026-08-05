@@ -28,8 +28,9 @@ export function NightAssistantPage() {
   const [localNotes, setLocalNotes]         = useState('');
   const [localBluffs, setLocalBluffs]       = useState<string[]>([]);
   const [localRoleId, setLocalRoleId]       = useState('');
-  const [showReveal, setShowReveal]         = useState(false);
-  const [showPlayerRole, setShowPlayerRole] = useState(false);
+  const [showReveal, setShowReveal]             = useState(false);
+  const [showPlayerRole, setShowPlayerRole]     = useState(false);
+  const [showTargetReveal, setShowTargetReveal] = useState(false);
   const [executedPlayerId, setExecutedPlayerId] = useState<string | null>(null);
   const [showProgress, setShowProgress]     = useState(false);
   const [saving, setSaving]                 = useState(false);
@@ -168,6 +169,7 @@ export function NightAssistantPage() {
   function loadStepState(stepKey: string) {
     setShowReveal(false);
     setShowPlayerRole(false);
+    setShowTargetReveal(false);
     const saved = nightActions.find((a) => a.step_key === stepKey);
     setLocalTargets(saved?.target_ids ?? []);
     if (saved?.notes) {
@@ -272,6 +274,24 @@ export function NightAssistantPage() {
   }
 
   // ── Actions ───────────────────────────────────────────────────────────
+
+  async function handleSetRedHerring(playerId: string) {
+    if (!room) return;
+    // Remove any existing red herring token then place the new one
+    const existing = reminderTokens.filter((t) => t.token_key === 'fortune-teller-red-herring');
+    await Promise.all(existing.map((t) => supabase.from('reminder_tokens').delete().eq('id', t.id)));
+    const { data } = await supabase
+      .from('reminder_tokens')
+      .insert({ player_id: playerId, room_id: room.id, token_key: 'fortune-teller-red-herring' })
+      .select('id, player_id, room_id, token_key, created_at')
+      .single();
+    if (data) {
+      setReminderTokens((prev) => [
+        ...prev.filter((t) => t.token_key !== 'fortune-teller-red-herring'),
+        data as ReminderToken,
+      ]);
+    }
+  }
 
   function buildNotesPayload(step: NightStepDef): string {
     if (step.isDemonInfo || step.roleRevealTeam) {
@@ -385,6 +405,27 @@ export function NightAssistantPage() {
         ?? players.find((p) => p.drunk_role === currentStep.characterId)
         ?? null)
     : null;
+
+  // ── Ravenkeeper: reveal target's role ────────────────────────────────
+  const isRavenkeeperStep     = currentStep.characterId === 'ravenkeeper';
+  const ravenkeeperTarget     = isRavenkeeperStep && localTargets.length === 1
+    ? (players.find((p) => p.id === localTargets[0]) ?? null)
+    : null;
+  const ravenkeeperTargetChar = ravenkeeperTarget?.role
+    ? (TROUBLE_BREWING.find((c) => c.id === ravenkeeperTarget.role) ?? null)
+    : null;
+
+  // ── Fortune Teller: red herring ───────────────────────────────────────
+  const isFortuneTellerStep = currentStep.characterId === 'fortune-teller';
+  const redHerringToken     = reminderTokens.find((t) => t.token_key === 'fortune-teller-red-herring');
+  const redHerringPlayer    = redHerringToken
+    ? (players.find((p) => p.id === redHerringToken.player_id) ?? null)
+    : null;
+  // Good players eligible to be the red herring
+  const goodPlayers = players.filter((p) => {
+    const char = p.role ? TROUBLE_BREWING.find((c) => c.id === p.role) : null;
+    return char && (char.team === 'townsfolk' || char.team === 'outsider');
+  });
 
   // ── Undertaker: executed player info ─────────────────────────────────
   const isUndertakerStep   = currentStep.characterId === 'undertaker';
@@ -566,6 +607,37 @@ export function NightAssistantPage() {
             )
           )}
 
+          {/* Fortune Teller: red herring picker */}
+          {isFortuneTellerStep && (
+            <div className="step-red-herring">
+              <p className="step-select-hint">
+                Red Herring
+                {redHerringPlayer
+                  ? <span className="step-red-herring-name"> · {redHerringPlayer.display_name}</span>
+                  : <span className="step-red-herring-unset"> — not set yet</span>}
+              </p>
+              {nightNumber === 1 && (
+                <div className="step-player-grid">
+                  {goodPlayers.map((p) => {
+                    const sel = redHerringToken?.player_id === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        className={['step-player-btn', sel && 'is-selected'].filter(Boolean).join(' ')}
+                        onClick={() => void handleSetRedHerring(p.id)}
+                      >
+                        <span className="step-player-name">{p.display_name}</span>
+                        <span className="step-player-role">
+                          {TROUBLE_BREWING.find((c) => c.id === p.role)?.name ?? p.role}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Spy: full grimoire panel */}
           {isSpyStep && (
             <div className="step-grimoire">
@@ -646,6 +718,16 @@ export function NightAssistantPage() {
                 })}
               </div>
             </div>
+          )}
+
+          {/* Ravenkeeper: reveal target's role after selection */}
+          {isRavenkeeperStep && ravenkeeperTarget && ravenkeeperTargetChar && (
+            <button
+              className="btn btn-secondary step-show-role-btn"
+              onClick={() => setShowTargetReveal(true)}
+            >
+              Show {ravenkeeperTarget.display_name}'s role to Ravenkeeper →
+            </button>
           )}
 
           {/* Demon bluffs */}
@@ -776,6 +858,24 @@ export function NightAssistantPage() {
           </div>
         </div>
       </main>
+
+      {/* ── Ravenkeeper target role reveal ── */}
+      {showTargetReveal && ravenkeeperTarget && ravenkeeperTargetChar && (
+        <div className="reveal-overlay" onClick={() => setShowTargetReveal(false)}>
+          <div className="reveal-content" onClick={(e) => e.stopPropagation()}>
+            <p className="reveal-eyebrow">Their role</p>
+            <h2 className="reveal-title">{ravenkeeperTarget.display_name}</h2>
+            <div className={`reveal-role-card reveal-role-card--${ravenkeeperTargetChar.team} reveal-role-card--solo`}>
+              <span className="reveal-role-name">{ravenkeeperTargetChar.name}</span>
+              <span className="reveal-role-team">{TEAM_LABELS[ravenkeeperTargetChar.team]}</span>
+              <p className="reveal-role-ability">{ravenkeeperTargetChar.ability}</p>
+            </div>
+            <button className="reveal-dismiss" onClick={() => setShowTargetReveal(false)}>
+              Put them back to sleep
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Player role reveal overlay ── */}
       {showPlayerRole && showRoleCharDef && charPlayer && (

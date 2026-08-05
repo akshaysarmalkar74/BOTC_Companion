@@ -2483,6 +2483,28 @@ button, select, input, textarea {
   align-self: flex-start;
 }
 
+/* ── Fortune Teller red herring ── */
+
+.step-red-herring {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(194, 59, 70, 0.06);
+  border: 1px solid rgba(194, 59, 70, 0.25);
+}
+
+.step-red-herring-name {
+  color: var(--team-minion);
+  font-weight: 600;
+}
+
+.step-red-herring-unset {
+  color: var(--muted);
+  font-style: italic;
+}
+
 /* ── Undertaker info panel ── */
 
 .step-info-panel {
