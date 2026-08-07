@@ -385,10 +385,12 @@ export function computeActiveSteps(
     // Character steps: must be in the script
     if (!def.characterId || !scriptSet.has(def.characterId)) continue;
 
-    // Skip dead players where the character doesn't benefit from waking when dead
+    // Skip steps where no alive player has this role.
+    // This handles both: dead players (skipWhenDead) and promoted players
+    // (e.g. Scarlet Woman whose role changed to 'imp' after succession).
     if (def.skipWhenDead) {
       const player = players.find((p) => p.role === def.characterId);
-      if (player && !player.is_alive) continue;
+      if (!player || !player.is_alive) continue;
     }
 
     steps.push(def);

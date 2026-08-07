@@ -16,9 +16,12 @@ export function stageValidate(ctx: PipelineContext): PipelineContext {
   const warnings: ValidationWarning[] = [...resolution.warnings];
 
   // ── Duplicate roles ────────────────────────────────────────────────────────
+  // Only check alive players — dead players retain their old role in the DB
+  // (e.g. original Imp after Scarlet Woman succession) and should not trigger
+  // a false duplicate warning.
   const roleCounts = new Map<string, number>();
   for (const player of state.players) {
-    if (!player.role) continue;
+    if (!player.role || !player.is_alive) continue;
     roleCounts.set(player.role, (roleCounts.get(player.role) ?? 0) + 1);
   }
   for (const [role, count] of roleCounts) {

@@ -222,7 +222,18 @@ export function NightResolutionPage() {
         return updated;
       });
 
-      const promotion = detectScarletWomanPromotion(updatedPlayers);
+      // Detect SW promotion: check if the commit included a scarlet-woman → imp
+      // role change (updatedPlayers already has role='imp' for the SW, so
+      // detectScarletWomanPromotion wouldn't find her there).
+      const swEntry = [...roleOverrides.entries()].find(
+        ([pid, newRole]) =>
+          players.find((p) => p.id === pid)?.role === 'scarlet-woman' &&
+          newRole === 'imp',
+      );
+      const promotion = swEntry
+        ? { playerId: swEntry[0], playerName: players.find((p) => p.id === swEntry[0])?.display_name ?? '' }
+        : detectScarletWomanPromotion(updatedPlayers);
+
       if (promotion) {
         setDemonPromotion(promotion);
       } else {
