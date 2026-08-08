@@ -32,7 +32,7 @@ export function LobbyPage() {
         // role is intentionally excluded — players must not see each other's roles
         supabase
           .from('players')
-          .select('id, room_id, display_name, is_host, seat_order, created_at')
+          .select('id, room_id, display_name, is_host, is_bot, seat_order, created_at')
           .eq('room_id', roomId)
           .order('seat_order'),
       ]);
@@ -186,6 +186,30 @@ export function LobbyPage() {
     await supabase.from('players').delete().eq('id', targetId);
   };
 
+  const BOT_NAMES = [
+    'Aldric', 'Brynn', 'Cassia', 'Dorian', 'Elara',
+    'Fenn', 'Greta', 'Hadley', 'Isolde', 'Jareth',
+    'Kira', 'Lorne', 'Mira', 'Nils', 'Orin',
+    'Petra', 'Quinn', 'Rook', 'Silas', 'Tova',
+  ];
+
+  const handleAddBot = async () => {
+    const existingBots = players.filter((p) => p.is_bot);
+    const usedNames = new Set(existingBots.map((p) => p.display_name));
+    const availableName = BOT_NAMES.find((n) => !usedNames.has(n)) ??
+      `Bot ${existingBots.length + 1}`;
+
+    const maxSeat = players.reduce((m, p) => Math.max(m, p.seat_order), 0);
+
+    await supabase.from('players').insert({
+      room_id: roomId,
+      display_name: availableName,
+      is_host: false,
+      is_bot: true,
+      seat_order: maxSeat + 1,
+    });
+  };
+
   // ── Render ─────────────────────────────────────────────────────────
 
   if (kicked) {
@@ -253,6 +277,12 @@ export function LobbyPage() {
               title={!scriptCount ? 'Build a script first' : undefined}
             >
               Assign Roles
+            </button>
+            <button
+              className="lobby-nav-btn lobby-nav-btn--bot"
+              onClick={handleAddBot}
+            >
+              + Add Bot
             </button>
           </>
         )}

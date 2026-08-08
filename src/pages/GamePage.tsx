@@ -7,6 +7,7 @@ import { GrimoireCircle } from '../components/GrimoireCircle';
 import { PlayerDetailPanel } from '../components/PlayerDetailPanel';
 import { TROUBLE_BREWING } from '../data/troubleBrewing';
 import { recordManualDeath, recordGameEnd, recordReminderAdded, recordReminderRemoved } from '../lib/gameHistory';
+import { detectWinCondition, detectScarletWomanPromotion, type WinDetection, type DemonPromotion } from '../lib/winConditions';
 import type { Player, Room, ReminderToken } from '../types';
 
 export function GamePage() {
@@ -19,7 +20,8 @@ export function GamePage() {
   const [loading, setLoading]               = useState(true);
   const [showEndModal, setShowEndModal]     = useState(false);
   const [endingGame, setEndingGame]         = useState(false);
-  const [rematchWorking, setRematchWorking] = useState(false);
+  const [winAlert, setWinAlert]             = useState<WinDetection | null>(null);
+  const [demonPromotion, setDemonPromotion] = useState<DemonPromotion | null>(null);
   const navigate = useNavigate();
 
   const session = loadSession();
@@ -52,7 +54,7 @@ export function GamePage() {
           supabase
             .from('players')
             .select(
-              'id, display_name, seat_order, is_host, role, is_alive, ghost_vote_used, notes, room_id, created_at'
+              'id, display_name, seat_order, is_host, role, drunk_role, is_alive, ghost_vote_used, notes, room_id, created_at'
             )
             .eq('room_id', roomId)
             .eq('is_host', false)
@@ -69,11 +71,15 @@ export function GamePage() {
         // Players only fetch their own role — no other player data is read
         const { data: me } = await supabase
           .from('players')
-          .select('role')
+          .select('role, drunk_role')
           .eq('id', playerId)
           .single();
 
-        setMyRole(me?.role ?? null);
+        // If the player is the Drunk, show them their fake Townsfolk role —
+        // they must never know they are the Drunk.
+        const displayRole =
+          me?.role === 'drunk' && me?.drunk_role ? me.drunk_role : me?.role;
+        setMyRole(displayRole ?? null);
       }
 
       setLoading(false);
@@ -81,6 +87,24 @@ export function GamePage() {
 
     load();
   }, [roomId, playerId, isHost]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Realtime (non-host): redirect to /win when game ends ────────────
+  useEffect(() => {
+    if (isHost) return;
+
+    const ch = supabase.channel(`game-end-watch:${roomId}`);
+    ch.on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` },
+      (payload) => {
+        if ((payload.new as { status: string }).status === 'completed') {
+          navigate('/win');
+        }
+      }
+    ).subscribe();
+
+    return () => { ch.unsubscribe(); };
+  }, [roomId, isHost]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Realtime (host only) ────────────────────────────────────────────
   useEffect(() => {
@@ -100,6 +124,7 @@ export function GamePage() {
                 ? {
                     ...p,
                     display_name:    updated.display_name,
+                    role:            updated.role,
                     is_alive:        updated.is_alive,
                     ghost_vote_used: updated.ghost_vote_used,
                     notes:           updated.notes,
@@ -150,14 +175,27 @@ export function GamePage() {
     const player = allPlayers.find((p) => p.id === targetId);
     if (!player) return;
     const newAlive = !player.is_alive;
-    setAllPlayers((prev) =>
-      prev.map((p) => (p.id === targetId ? { ...p, is_alive: newAlive } : p))
-    );
+    const updatedPlayers = allPlayers.map((p) => (p.id === targetId ? { ...p, is_alive: newAlive } : p));
+    setAllPlayers(updatedPlayers);
     await supabase.from('players').update({ is_alive: newAlive }).eq('id', targetId);
     // Record manual death (not resurrection) to history
     if (!newAlive && room) {
       void recordManualDeath(roomId, room.phase, targetId, allPlayers);
+      // Scarlet Woman promotion takes priority over Good-wins check
+      const promotion = detectScarletWomanPromotion(updatedPlayers);
+      if (promotion) {
+        setDemonPromotion(promotion);
+      } else {
+        const win = detectWinCondition(updatedPlayers);
+        if (win) setWinAlert(win);
+      }
     }
+  };
+
+  const handlePromoteScarletWoman = async (swId: string) => {
+    await supabase.from('players').update({ role: 'imp' }).eq('id', swId);
+    setAllPlayers((prev) => prev.map((p) => p.id === swId ? { ...p, role: 'imp' } : p));
+    setDemonPromotion(null);
   };
 
   const handleToggleGhostVote = async (targetId: string) => {
@@ -228,35 +266,8 @@ export function GamePage() {
       .update({ status: 'completed', outcome, ended_at: endedAt })
       .eq('id', roomId);
     void recordGameEnd(roomId, room.phase, outcome, allPlayers);
-    setRoom((prev) => prev ? { ...prev, status: 'completed', outcome, ended_at: endedAt } : prev);
-    setShowEndModal(false);
     setEndingGame(false);
-  };
-
-  const handleRematch = async () => {
-    if (!room) return;
-    setRematchWorking(true);
-    // Clear all game-specific data for this room
-    await Promise.all([
-      supabase.from('night_actions').delete().eq('room_id', roomId),
-      supabase.from('day_events').delete().eq('room_id', roomId),
-      supabase.from('day_notes').delete().eq('room_id', roomId),
-      supabase.from('reminder_tokens').delete().eq('room_id', roomId),
-      supabase.from('game_events').delete().eq('room_id', roomId),
-    ]);
-    // Reset all players
-    await supabase
-      .from('players')
-      .update({ role: null, is_alive: true, ghost_vote_used: false, notes: '' })
-      .eq('room_id', roomId)
-      .eq('is_host', false);
-    // Reset room to lobby
-    await supabase
-      .from('rooms')
-      .update({ status: 'lobby', phase: 'Night 1', outcome: null, ended_at: null, night_step_key: null })
-      .eq('id', roomId);
-    setRematchWorking(false);
-    navigate('/assign');
+    navigate('/win');
   };
 
   // ── Render ─────────────────────────────────────────────────────────
@@ -277,45 +288,19 @@ export function GamePage() {
     const selectedCharacter = selectedPlayer?.role
       ? (TROUBLE_BREWING.find((c) => c.id === selectedPlayer.role) ?? null)
       : null;
+    // The fake Townsfolk role the Drunk player thinks they have
+    const selectedDrunkRoleChar =
+      selectedPlayer?.role === 'drunk' && selectedPlayer.drunk_role
+        ? (TROUBLE_BREWING.find((c) => c.id === selectedPlayer.drunk_role) ?? null)
+        : null;
     const selectedPlayerTokens = selectedId
       ? reminderTokens.filter((t) => t.player_id === selectedId)
       : [];
 
-    // ── Completed state ─────────────────────────────────────────────
+    // If somehow the host lands back on /game after completion, redirect to /win
     if (room?.status === 'completed') {
-      const outcomeLabel =
-        room.outcome === 'good'    ? 'Good wins!'
-        : room.outcome === 'evil'  ? 'Evil wins!'
-        : 'Game cancelled.';
-      const outcomeClass =
-        room.outcome === 'good'    ? 'outcome-good'
-        : room.outcome === 'evil'  ? 'outcome-evil'
-        : 'outcome-cancelled';
-
-      return (
-        <div className="page centered">
-          <div className={`form-card game-over-card ${outcomeClass}`}>
-            <p className="game-over-eyebrow">Game Over</p>
-            <h1 className="game-over-title">{outcomeLabel}</h1>
-            <p className="game-over-room">Room {room.code}</p>
-            <div className="game-over-actions">
-              <button
-                className="btn btn-primary"
-                onClick={handleRematch}
-                disabled={rematchWorking}
-              >
-                {rematchWorking ? 'Setting up…' : 'Rematch'}
-              </button>
-              <button
-                className="btn btn-secondary"
-                onClick={() => navigate('/history')}
-              >
-                View History
-              </button>
-            </div>
-          </div>
-        </div>
-      );
+      navigate('/win');
+      return null;
     }
 
     return (
@@ -375,6 +360,7 @@ export function GamePage() {
           <PlayerDetailPanel
             player={selectedPlayer}
             character={selectedCharacter}
+            drunkRoleChar={selectedDrunkRoleChar}
             playerTokens={selectedPlayerTokens}
             onClose={() => setSelectedId(null)}
             onToggleAlive={handleToggleAlive}
@@ -383,6 +369,68 @@ export function GamePage() {
             onAddToken={handleAddToken}
             onRemoveToken={handleRemoveToken}
           />
+        )}
+
+        {/* Scarlet Woman Demon Promotion */}
+        {demonPromotion && (
+          <div className="modal-overlay">
+            <div className="modal-card win-alert-modal">
+              <div className="win-alert-badge win-alert-badge--evil">Demon Succession</div>
+              <h2 className="modal-title">Scarlet Woman Rises</h2>
+              <p className="modal-subtitle win-alert-reason">
+                The Demon has died with 5+ players alive.{' '}
+                <strong>{demonPromotion.playerName}</strong> (Scarlet Woman) secretly becomes the new Demon.
+              </p>
+              <p className="win-alert-hint">
+                The game continues. Update her token and wake her tonight as the Imp.
+              </p>
+              <div className="end-game-options">
+                <button
+                  className="btn end-game-btn end-game-evil"
+                  onClick={() => void handlePromoteScarletWoman(demonPromotion.playerId)}
+                >
+                  Promote {demonPromotion.playerName} → Imp
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setDemonPromotion(null)}
+                >
+                  Handle Manually
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Win Condition Alert */}
+        {winAlert && (
+          <div className="modal-overlay">
+            <div className="modal-card win-alert-modal">
+              <div className={`win-alert-badge win-alert-badge--${winAlert.outcome}`}>
+                {winAlert.outcome === 'good' ? 'Good Wins' : 'Evil Wins'}
+              </div>
+              <h2 className="modal-title">Win Condition Detected</h2>
+              <p className="modal-subtitle win-alert-reason">{winAlert.reason}</p>
+              <p className="win-alert-hint">
+                Confirm to end the game, or continue if this was triggered by error.
+              </p>
+              <div className="end-game-options">
+                <button
+                  className={`btn end-game-btn ${winAlert.outcome === 'good' ? 'end-game-good' : 'end-game-evil'}`}
+                  onClick={() => { setWinAlert(null); void handleEndGame(winAlert.outcome); }}
+                  disabled={endingGame}
+                >
+                  End Game — {winAlert.outcome === 'good' ? 'Good Wins' : 'Evil Wins'}
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setWinAlert(null)}
+                >
+                  Continue Anyway
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* End Game Modal */}

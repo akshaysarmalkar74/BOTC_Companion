@@ -19,6 +19,8 @@ export function RoleAssignmentPage() {
   const [script, setScript] = useState<string[]>([]);
   /** playerId → characterId */
   const [assignments, setAssignments] = useState<Record<string, string>>({});
+  /** playerId → fake Townsfolk role ID shown to the Drunk player */
+  const [drunkRoles, setDrunkRoles] = useState<Record<string, string>>({});
   const [starting, setStarting] = useState(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -40,7 +42,7 @@ export function RoleAssignmentPage() {
         supabase.from('rooms').select('script, status').eq('id', roomId).single(),
         supabase
           .from('players')
-          .select('id, display_name, seat_order, role, is_host')
+          .select('id, display_name, seat_order, role, drunk_role, is_host')
           .eq('room_id', roomId)
           .order('seat_order'),
       ]);
@@ -60,10 +62,13 @@ export function RoleAssignmentPage() {
 
       // Restore any existing assignments
       const existing: Record<string, string> = {};
+      const existingDrunk: Record<string, string> = {};
       for (const p of nonHost) {
         if (p.role) existing[p.id] = p.role;
+        if (p.drunk_role) existingDrunk[p.id] = p.drunk_role;
       }
       setAssignments(existing);
+      setDrunkRoles(existingDrunk);
 
       setLoading(false);
     }
@@ -81,7 +86,12 @@ export function RoleAssignmentPage() {
   const allAssigned =
     !countMismatch &&
     playerCount > 0 &&
-    players.every((p) => !!assignments[p.id]) &&
+    players.every((p) => {
+      if (!assignments[p.id]) return false;
+      // Drunk also needs a fake Townsfolk role selected
+      if (assignments[p.id] === 'drunk' && !drunkRoles[p.id]) return false;
+      return true;
+    }) &&
     new Set(Object.values(assignments)).size === assignedCount;
 
   // Characters already assigned to players other than `forPlayerId`
@@ -103,10 +113,21 @@ export function RoleAssignmentPage() {
       [chars[i], chars[j]] = [chars[j], chars[i]];
     }
     const next: Record<string, string> = {};
+    const nextDrunk: Record<string, string> = {};
     players.forEach((p, i) => {
       if (chars[i]) next[p.id] = chars[i];
     });
+    // Auto-pick a random Townsfolk from the script for any Drunk player
+    const townsfolkIds = script.filter(
+      (id) => TROUBLE_BREWING.find((c) => c.id === id)?.team === 'townsfolk'
+    );
+    for (const [pid, cid] of Object.entries(next)) {
+      if (cid === 'drunk' && townsfolkIds.length > 0) {
+        nextDrunk[pid] = townsfolkIds[Math.floor(Math.random() * townsfolkIds.length)];
+      }
+    }
     setAssignments(next);
+    setDrunkRoles(nextDrunk);
   }
 
   function handleManualAssign(playerId: string, charId: string) {
@@ -118,14 +139,15 @@ export function RoleAssignmentPage() {
     setStarting(true);
 
     try {
-      // Write every role assignment to the database
+      // Write every role assignment to the database (plus drunk_role where needed)
       await Promise.all(
-        players.map((p) =>
-          supabase
-            .from('players')
-            .update({ role: assignments[p.id] ?? null })
-            .eq('id', p.id)
-        )
+        players.map((p) => {
+          const update: Record<string, unknown> = { role: assignments[p.id] ?? null };
+          if (assignments[p.id] === 'drunk') {
+            update.drunk_role = drunkRoles[p.id] ?? null;
+          }
+          return supabase.from('players').update(update).eq('id', p.id);
+        })
       );
 
       // Transition the room to in_progress — triggers all connected clients
@@ -256,6 +278,32 @@ export function RoleAssignmentPage() {
                               );
                             })}
                           </select>
+                          {/* Drunk fake-role picker — only shown when Drunk is assigned */}
+                          {assignedId === 'drunk' && (
+                            <select
+                              className="role-select drunk-fake-role-select"
+                              value={drunkRoles[player.id] ?? ''}
+                              onChange={(e) =>
+                                setDrunkRoles((prev) => ({
+                                  ...prev,
+                                  [player.id]: e.target.value,
+                                }))
+                              }
+                            >
+                              <option value="">— Fake role (shown to player) —</option>
+                              {script
+                                .map((id) => TROUBLE_BREWING.find((c) => c.id === id))
+                                .filter(
+                                  (c): c is NonNullable<typeof c> =>
+                                    !!c && c.team === 'townsfolk'
+                                )
+                                .map((c) => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.name}
+                                  </option>
+                                ))}
+                            </select>
+                          )}
                         </td>
                         <td className="col-team">
                           {assignedChar && (

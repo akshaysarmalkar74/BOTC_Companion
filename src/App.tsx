@@ -12,6 +12,7 @@ import { DayAssistantPage } from './pages/DayAssistantPage';
 import { NightResolutionPage } from './pages/NightResolutionPage';
 import { GameHistoryPage } from './pages/GameHistoryPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { WinPage } from './pages/WinPage';
 import { OfflineBanner } from './components/OfflineBanner';
 
 export default function App() {
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/history" element={<GameHistoryPage />} />
         <Route path="/day" element={<DayAssistantPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/win" element={<WinPage />} />
       </Routes>
     </BrowserRouter>
   );

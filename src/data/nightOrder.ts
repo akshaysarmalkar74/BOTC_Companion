@@ -58,6 +58,17 @@ export interface NightStepDef {
    * If the acting player has this token, the engine emits a validation warning.
    */
   oncePerGameToken?: string;
+
+  /**
+   * When set, show a role-picker for this alignment so the ST can record
+   * which role token they showed to the player (Washerwoman / Librarian / Investigator).
+   */
+  roleRevealTeam?: 'townsfolk' | 'outsider' | 'minion';
+
+  /**
+   * Mark the Demon Info step so the UI shows the bluff role picker (3 roles not in play).
+   */
+  isDemonInfo?: boolean;
 }
 
 // ── Official Trouble Brewing night steps ────────────────────────────────────
@@ -89,6 +100,7 @@ export const NIGHT_STEPS: NightStepDef[] = [
     autoReminders: [],
     skipWhenDead: false,
     conditional: false,
+    isDemonInfo: true,
   },
   // ── Characters ──────────────────────────────────────────────────────
   {
@@ -125,6 +137,7 @@ export const NIGHT_STEPS: NightStepDef[] = [
     selfAllowed: false,
     deadAllowed: false,
     targetsMustDiffer: true,
+    roleRevealTeam: 'townsfolk',
   },
   {
     key: 'librarian',
@@ -145,6 +158,7 @@ export const NIGHT_STEPS: NightStepDef[] = [
     selfAllowed: false,
     deadAllowed: false,
     targetsMustDiffer: true,
+    roleRevealTeam: 'outsider',
   },
   {
     key: 'investigator',
@@ -165,6 +179,7 @@ export const NIGHT_STEPS: NightStepDef[] = [
     selfAllowed: false,
     deadAllowed: false,
     targetsMustDiffer: true,
+    roleRevealTeam: 'minion',
   },
   {
     key: 'chef',
@@ -260,7 +275,7 @@ export const NIGHT_STEPS: NightStepDef[] = [
     characterId: 'scarlet-woman',
     firstNight: false, otherNights: true,
     instruction:
-      'If the Imp just killed themselves, wake the Scarlet Woman. ' +
+      'The Imp chose themselves — wake the Scarlet Woman. ' +
       'Show them the Imp role token — they are now the Imp. Put them back to sleep.',
     targetCount: 0,
     autoReminders: [],
@@ -289,11 +304,11 @@ export const NIGHT_STEPS: NightStepDef[] = [
     characterId: 'ravenkeeper',
     firstNight: false, otherNights: true,
     instruction:
-      'If the Ravenkeeper died tonight, wake them. They point to any player. ' +
+      'The Ravenkeeper was killed by the Imp — wake them. They point to any player. ' +
       'Show them that player\'s role token. Put them back to sleep.',
     targetCount: 1,
     autoReminders: [],
-    skipWhenDead: false, // wakes specifically when dead
+    skipWhenDead: true, // skip if RK was already dead before this night
     conditional: true,
     selfAllowed: false,
     deadAllowed: true,   // Ravenkeeper may choose dead players
@@ -323,7 +338,7 @@ export const FIRST_NIGHT_ORDER: string[] = [
 ];
 
 export const OTHER_NIGHT_ORDER: string[] = [
-  'poisoner', 'monk', 'scarlet-woman', 'imp', 'ravenkeeper',
+  'poisoner', 'monk', 'imp', 'scarlet-woman', 'ravenkeeper',
   'undertaker', 'empath', 'fortune-teller', 'butler', 'spy',
 ];
 
@@ -370,10 +385,12 @@ export function computeActiveSteps(
     // Character steps: must be in the script
     if (!def.characterId || !scriptSet.has(def.characterId)) continue;
 
-    // Skip dead players where the character doesn't benefit from waking when dead
+    // Skip steps where no alive player has this role.
+    // This handles both: dead players (skipWhenDead) and promoted players
+    // (e.g. Scarlet Woman whose role changed to 'imp' after succession).
     if (def.skipWhenDead) {
       const player = players.find((p) => p.role === def.characterId);
-      if (player && !player.is_alive) continue;
+      if (!player || !player.is_alive) continue;
     }
 
     steps.push(def);
