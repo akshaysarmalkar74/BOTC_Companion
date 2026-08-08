@@ -98,7 +98,7 @@ export function NightResolutionPage() {
       ] = await Promise.all([
         supabase
           .from('players')
-          .select('id, display_name, seat_order, is_host, role, is_alive, ghost_vote_used, notes, room_id, created_at')
+          .select('id, display_name, seat_order, is_host, role, drunk_role, is_alive, ghost_vote_used, notes, room_id, created_at')
           .eq('room_id', roomId)
           .eq('is_host', false)
           .order('seat_order'),

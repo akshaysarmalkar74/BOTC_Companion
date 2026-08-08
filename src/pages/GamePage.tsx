@@ -124,6 +124,7 @@ export function GamePage() {
                 ? {
                     ...p,
                     display_name:    updated.display_name,
+                    role:            updated.role,
                     is_alive:        updated.is_alive,
                     ghost_vote_used: updated.ghost_vote_used,
                     notes:           updated.notes,

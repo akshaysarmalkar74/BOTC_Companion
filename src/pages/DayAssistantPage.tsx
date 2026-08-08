@@ -249,6 +249,18 @@ export function DayAssistantPage() {
         playerIds: virginResult.affectedPlayerIds,
         metadata: { abilityType: virginResult.type },
       });
+      // Mark once-per-game: place token so subsequent nominations don't re-trigger
+      if (virginResult.type === 'virgin-trigger') {
+        const virgin = players.find((p) => p.id === nomineeId);
+        if (virgin) {
+          const { data: newToken } = await supabase
+            .from('reminder_tokens')
+            .insert({ player_id: virgin.id, room_id: room.id, token_key: 'virgin-ability-used' })
+            .select('id, player_id, room_id, token_key, created_at')
+            .single();
+          if (newToken) setReminderTokens((prev) => [...prev, newToken as import('../types').ReminderToken]);
+        }
+      }
     }
 
     setNominatorId('');
@@ -589,10 +601,8 @@ export function DayAssistantPage() {
                 onChange={(e) => setExecuteId(e.target.value)}
               >
                 <option value="">Select player…</option>
-                {players.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.display_name}{!p.is_alive ? ' (dead)' : ''}
-                  </option>
+                {players.filter((p) => p.is_alive).map((p) => (
+                  <option key={p.id} value={p.id}>{p.display_name}</option>
                 ))}
               </select>
               <button
