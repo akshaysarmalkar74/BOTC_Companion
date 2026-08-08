@@ -449,6 +449,16 @@ export function NightAssistantPage() {
   // ── Ravenkeeper ──────────────────────────────────────────────────────
   const isRavenkeeperStep      = currentStep.characterId === 'ravenkeeper';
   const ravenkeeperIsImpaired  = isRavenkeeperStep && (isCharPlayerDrunk || isCharPlayerPoisoned);
+
+  // Check whether the Imp killed the Ravenkeeper this night (Imp step comes first).
+  // true  = Imp targeted RK → ability triggers
+  // false = Imp targeted someone else → skip
+  // null  = Imp action not saved yet
+  const rkImpAction    = isRavenkeeperStep ? (nightActions.find((a) => a.step_key === 'imp') ?? null) : null;
+  const rkKilledByImp: boolean | null =
+    isRavenkeeperStep && charPlayer && rkImpAction
+      ? rkImpAction.target_ids[0] === charPlayer.id
+      : null;
   const ravenkeeperTarget      = isRavenkeeperStep && localTargets.length === 1
     ? (players.find((p) => p.id === localTargets[0]) ?? null)
     : null;
@@ -632,6 +642,22 @@ export function NightAssistantPage() {
             </div>
           )}
 
+          {/* Ravenkeeper: show whether ability triggers based on Imp's saved action */}
+          {isRavenkeeperStep && rkKilledByImp === false && (
+            <div className="step-info-panel step-info-panel--muted">
+              <p className="step-info-panel-label">Ravenkeeper was not killed tonight</p>
+              <p className="step-info-panel-hint">
+                The Imp targeted{' '}
+                <strong>
+                  {rkImpAction?.target_ids[0]
+                    ? (players.find((p) => p.id === rkImpAction.target_ids[0])?.display_name ?? 'another player')
+                    : 'another player'}
+                </strong>{' '}
+                — ability does not trigger. Skip this step.
+              </p>
+            </div>
+          )}
+
           {/* Undertaker: executed player info + impairment handling */}
           {isUndertakerStep && (
             executedPlayer && executedCharDef ? (
@@ -762,7 +788,7 @@ export function NightAssistantPage() {
           )}
 
           {/* Player selection */}
-          {currentStep.targetCount > 0 && (
+          {currentStep.targetCount > 0 && (!isRavenkeeperStep || rkKilledByImp !== false) && (
             <div className="step-player-section">
               <p className="step-select-hint">
                 {currentStep.targetCount === 1
@@ -810,7 +836,7 @@ export function NightAssistantPage() {
           )}
 
           {/* Ravenkeeper: reveal target's role (real or false when impaired) */}
-          {isRavenkeeperStep && ravenkeeperTarget && (
+          {isRavenkeeperStep && rkKilledByImp !== false && ravenkeeperTarget && (
             ravenkeeperIsImpaired ? (
               <div className="step-impaired-section">
                 {ravenkeeperTargetChar && (

@@ -304,11 +304,11 @@ export const NIGHT_STEPS: NightStepDef[] = [
     characterId: 'ravenkeeper',
     firstNight: false, otherNights: true,
     instruction:
-      'If the Ravenkeeper died tonight, wake them. They point to any player. ' +
+      'The Ravenkeeper was killed by the Imp — wake them. They point to any player. ' +
       'Show them that player\'s role token. Put them back to sleep.',
     targetCount: 1,
     autoReminders: [],
-    skipWhenDead: false, // wakes specifically when dead
+    skipWhenDead: true, // skip if RK was already dead before this night
     conditional: true,
     selfAllowed: false,
     deadAllowed: true,   // Ravenkeeper may choose dead players
