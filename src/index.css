@@ -2981,6 +2981,7 @@ button, select, input, textarea {
 
 .day-ghost-vote      { font-size: 0.6875rem; color: var(--muted); }
 .day-ghost-vote.used { text-decoration: line-through; opacity: 0.55; }
+.day-ghost-vote-hint { font-size: 0.75rem; color: var(--accent); align-self: center; padding-left: 6px; }
 
 /* Nomination / execution rows */
 .day-row {

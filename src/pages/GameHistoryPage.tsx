@@ -86,10 +86,10 @@ export function GameHistoryPage() {
   const session  = loadSession();
 
   useEffect(() => {
-    if (!session?.isHost) navigate('/game');
+    if (!session) navigate('/');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!session?.isHost) return null;
+  if (!session) return null;
   const { roomId } = session;
 
   // ── Load ────────────────────────────────────────────────────────────────────
@@ -115,7 +115,7 @@ export function GameHistoryPage() {
             .order('created_at'),
         ]);
 
-      if (!roomData) { navigate('/game'); return; }
+      if (!roomData) { navigate('/'); return; }
       setRoom(roomData as Room);
       setPlayers((playerData ?? []) as Player[]);
       setEvents((eventData ?? []) as GameEvent[]);
@@ -184,8 +184,8 @@ export function GameHistoryPage() {
     <div className="history-page">
       {/* ── Header ── */}
       <header className="history-header">
-        <button className="night-back-btn" onClick={() => navigate('/game')}>
-          ← Grimoire
+        <button className="night-back-btn" onClick={() => navigate(room?.status === 'completed' ? '/win' : '/game')}>
+          {room?.status === 'completed' ? '← Results' : '← Grimoire'}
         </button>
         <span className="history-header-title">
           Game History{room ? ` · Room ${room.code}` : ''}

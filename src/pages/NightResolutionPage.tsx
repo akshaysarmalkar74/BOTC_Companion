@@ -84,6 +84,13 @@ export function NightResolutionPage() {
         return;
       }
       const r = roomData as Room;
+
+      // Guard: night must be fully stepped through before resolving
+      if (r.night_step_key !== 'complete') {
+        navigate('/night');
+        return;
+      }
+
       setRoom(r);
 
       const nightNum   = getNightNumber(r.phase);
@@ -127,9 +134,11 @@ export function NightResolutionPage() {
       setPlayers(loadedPlayers);
 
       // Find executed player from previous day (for Undertaker)
-      const executedPlayerId = dayEvents.find(
-        (e) => e.event_type === 'execution',
-      )?.payload?.player_id;
+      const execEvent = dayEvents.find((e) => e.event_type === 'execution');
+      const executedPlayerId   = execEvent?.payload?.player_id;
+      // Role snapshotted at execution time; fall back to current role in DB
+      const executedPlayerRole = execEvent?.payload?.role
+        ?? loadedPlayers.find((p) => p.id === executedPlayerId)?.role;
 
       // Run the rule engine
       const gameState = {
@@ -139,6 +148,7 @@ export function NightResolutionPage() {
         nightNumber: resolveNum,
         script: Array.isArray(r.script) ? (r.script as string[]) : [],
         executedPlayerId,
+        executedPlayerRole,
       };
 
       const builtActionMap = buildActionMap(loadedActions);

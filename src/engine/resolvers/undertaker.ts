@@ -45,7 +45,10 @@ export const UndertakerResolver: RoleResolver = {
     const executed = getPlayerById(state, state.executedPlayerId);
     if (!executed) return ctx;
 
-    const executedChar = TROUBLE_BREWING.find((c) => c.id === executed.role);
+    // Prefer the snapshotted role (captured at execution time) to avoid stale
+    // reads if the player's role was updated afterwards (e.g. SW succession).
+    const executedRoleId = state.executedPlayerRole ?? executed.role;
+    const executedChar = TROUBLE_BREWING.find((c) => c.id === executedRoleId);
     const impaired = isAbilityImpaired(state, ut.id);
 
     if (impaired) {
@@ -88,7 +91,7 @@ export const UndertakerResolver: RoleResolver = {
           {
             id: makeEventId(),
             type: 'info',
-            description: `Undertaker (${ut.display_name}) learns ${executed.display_name} was the ${executedChar?.name ?? executed.role}.`,
+            description: `Undertaker (${ut.display_name}) learns ${executed.display_name} was the ${executedChar?.name ?? executedRoleId}.`,
             affectedPlayerIds: [ut.id, executed.id],
           },
         ],
@@ -98,12 +101,12 @@ export const UndertakerResolver: RoleResolver = {
             characterId: 'undertaker',
             playerId: ut.id,
             abilityWorking: true,
-            suggestion: `Show the Undertaker the ${executedChar?.name ?? executed.role} token (${executed.display_name} was executed yesterday).`,
+            suggestion: `Show the Undertaker the ${executedChar?.name ?? executedRoleId} token (${executed.display_name} was executed yesterday).`,
           },
         ],
         suggestions: [
           ...resolution.suggestions,
-          `Show Undertaker the ${executedChar?.name ?? executed.role} token for ${executed.display_name}.`,
+          `Show Undertaker the ${executedChar?.name ?? executedRoleId} token for ${executed.display_name}.`,
         ],
       },
     };

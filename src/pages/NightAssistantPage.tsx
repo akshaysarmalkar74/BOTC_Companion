@@ -9,6 +9,11 @@ import {
 } from '../data/nightOrder';
 import type { NightStepDef } from '../data/nightOrder';
 import type { Player, Room, ReminderToken, NightAction } from '../types';
+import {
+  countAdjacentEvilPairs,
+  countEvilAliveNeighbors,
+  isAbilityImpaired,
+} from '../engine/stateEngine';
 
 const TEAM_LABELS: Record<string, string> = {
   townsfolk: 'Townsfolk',
@@ -33,7 +38,8 @@ export function NightAssistantPage() {
   const [showTargetReveal, setShowTargetReveal]   = useState(false);
   const [showUndertakerReveal, setShowUndertakerReveal] = useState(false);
   const [localFalseRoleId, setLocalFalseRoleId]   = useState('');
-  const [executedPlayerId, setExecutedPlayerId]   = useState<string | null>(null);
+  const [executedPlayerId, setExecutedPlayerId]         = useState<string | null>(null);
+  const [executedPlayerRoleSnapshot, setExecutedPlayerRoleSnapshot] = useState<string | null>(null);
   const [showProgress, setShowProgress]     = useState(false);
   const [saving, setSaving]                 = useState(false);
   const [loading, setLoading]               = useState(true);
@@ -124,8 +130,11 @@ export function NightAssistantPage() {
       setReminderTokens(loadedTokens);
       setNightActions(loadedActions);
 
-      const execId = (execData as { payload?: { player_id?: string } } | null)?.payload?.player_id ?? null;
+      const execPayload = (execData as { payload?: { player_id?: string; role?: string } } | null)?.payload;
+      const execId = execPayload?.player_id ?? null;
+      const execRoleSnapshot = execPayload?.role ?? null;
       setExecutedPlayerId(execId);
+      setExecutedPlayerRoleSnapshot(execRoleSnapshot);
 
       const scriptIds = Array.isArray(r.script) ? (r.script as string[]) : [];
       const steps = computeActiveSteps(scriptIds, loadedPlayers, isFirst);
@@ -480,8 +489,11 @@ export function NightAssistantPage() {
   // ── Undertaker ───────────────────────────────────────────────────────
   const isUndertakerStep     = currentStep.characterId === 'undertaker';
   const executedPlayer       = executedPlayerId ? players.find((p) => p.id === executedPlayerId) ?? null : null;
-  const executedCharDef      = executedPlayer?.role
-    ? TROUBLE_BREWING.find((c) => c.id === executedPlayer.role) ?? null
+  // Use the role snapshotted at execution time (falls back to current role for
+  // old events that predate the snapshot field).
+  const executedRoleId       = executedPlayerRoleSnapshot ?? executedPlayer?.role;
+  const executedCharDef      = executedRoleId
+    ? TROUBLE_BREWING.find((c) => c.id === executedRoleId) ?? null
     : null;
   const undertakerIsImpaired = isUndertakerStep && (isCharPlayerDrunk || isCharPlayerPoisoned);
   // Reveal shows the false role when impaired, real role otherwise
@@ -526,6 +538,33 @@ export function NightAssistantPage() {
 
   // ── Spy ──────────────────────────────────────────────────────────────
   const isSpyStep = currentStep.characterId === 'spy';
+
+  // ── Chef / Empath — pre-computed counts ──────────────────────────────
+  // Build a minimal GameState so we can reuse the engine's pure functions.
+  const gameStateForCounts = {
+    roomId,
+    players,
+    reminderTokens,
+    nightNumber,
+    script: Array.isArray(room?.script) ? (room!.script as string[]) : [],
+  };
+
+  const isChefStep   = currentStep.characterId === 'chef';
+  const isEmpathStep = currentStep.characterId === 'empath';
+
+  const chefImpaired = isChefStep && charPlayer
+    ? isAbilityImpaired(gameStateForCounts, charPlayer.id)
+    : false;
+  const chefPairCount = isChefStep && !chefImpaired
+    ? countAdjacentEvilPairs(gameStateForCounts)
+    : null;
+
+  const empathImpaired = isEmpathStep && charPlayer
+    ? isAbilityImpaired(gameStateForCounts, charPlayer.id)
+    : false;
+  const empathNeighborCount = isEmpathStep && charPlayer && !empathImpaired
+    ? countEvilAliveNeighbors(gameStateForCounts, charPlayer.id)
+    : null;
 
   // Demon bluffs: ALL Trouble Brewing roles NOT assigned to any player
   const assignedRoles = new Set(players.map((p) => p.role).filter(Boolean));
@@ -698,6 +737,36 @@ export function NightAssistantPage() {
                 </strong>{' '}
                 — ability does not trigger. Skip this step.
               </p>
+            </div>
+          )}
+
+          {/* Chef: show adjacent evil pair count (Night 1 only) */}
+          {isChefStep && !chefImpaired && chefPairCount !== null && (
+            <div className="step-info-panel step-info-panel--townsfolk">
+              <p className="step-info-panel-label">Adjacent evil pairs tonight</p>
+              <p className="step-info-panel-name" style={{ fontSize: '2rem' }}>{chefPairCount}</p>
+              <p className="step-info-panel-hint">Show {chefPairCount} finger{chefPairCount !== 1 ? 's' : ''} to the Chef.</p>
+            </div>
+          )}
+          {isChefStep && chefImpaired && (
+            <div className="step-info-panel step-info-panel--muted">
+              <p className="step-info-panel-label">Chef is drunk / poisoned</p>
+              <p className="step-info-panel-hint">Show any number — ST's choice.</p>
+            </div>
+          )}
+
+          {/* Empath: show evil alive neighbour count */}
+          {isEmpathStep && !empathImpaired && empathNeighborCount !== null && (
+            <div className="step-info-panel step-info-panel--townsfolk">
+              <p className="step-info-panel-label">Evil alive neighbours</p>
+              <p className="step-info-panel-name" style={{ fontSize: '2rem' }}>{empathNeighborCount}</p>
+              <p className="step-info-panel-hint">Show {empathNeighborCount} finger{empathNeighborCount !== 1 ? 's' : ''} to the Empath.</p>
+            </div>
+          )}
+          {isEmpathStep && empathImpaired && (
+            <div className="step-info-panel step-info-panel--muted">
+              <p className="step-info-panel-label">Empath is drunk / poisoned</p>
+              <p className="step-info-panel-hint">Show any number (0, 1, or 2) — ST's choice.</p>
             </div>
           )}
 

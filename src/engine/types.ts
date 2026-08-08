@@ -29,6 +29,12 @@ export interface GameState {
    * Undertaker uses this to learn the executed role tonight.
    */
   executedPlayerId?: string;
+  /**
+   * The role the executed player held AT THE TIME of execution (snapshotted in
+   * day_events payload). Prevents stale reads if the player's role was later
+   * changed (e.g. post-hoc SW succession toggle).
+   */
+  executedPlayerRole?: string;
 }
 
 /** All night actions for one night, keyed by step_key */

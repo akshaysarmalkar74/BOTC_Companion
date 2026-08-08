@@ -65,6 +65,7 @@ export function DayAssistantPage() {
   const [showHistory, setShowHistory]       = useState(false);
   const [loading, setLoading]               = useState(true);
   const [dayAbilityBanners, setDayAbilityBanners] = useState<DayAbilityResult[]>([]);
+  const [ghostVoterId, setGhostVoterId]     = useState('');
   const [slayerPlayerId, setSlayerPlayerId] = useState('');
   const [slayerTargetId, setSlayerTargetId] = useState('');
   const [showExecuteConfirm, setShowExecuteConfirm] = useState(false);
@@ -264,12 +265,20 @@ export function DayAssistantPage() {
       }
     }
 
+    // Consume ghost vote if a dead voter was recorded
+    if (ghostVoterId) {
+      await supabase.from('players').update({ ghost_vote_used: true }).eq('id', ghostVoterId);
+      setPlayers((prev) => prev.map((p) => p.id === ghostVoterId ? { ...p, ghost_vote_used: true } : p));
+    }
+
     setNominatorId('');
     setNomineeId('');
+    setGhostVoterId('');
   };
 
   const handleExecute = async () => {
     if (!executeId || !room) return;
+    const executedRole = players.find((p) => p.id === executeId)?.role ?? null;
     const [{ data: eventData }] = await Promise.all([
       supabase
         .from('day_events')
@@ -277,7 +286,7 @@ export function DayAssistantPage() {
           room_id: room.id,
           day_number: dayNumber,
           event_type: 'execution',
-          payload: { player_id: executeId },
+          payload: { player_id: executeId, role: executedRole },
         })
         .select()
         .single(),
@@ -595,6 +604,23 @@ export function DayAssistantPage() {
                 Record
               </button>
             </div>
+            {players.some((p) => !p.is_alive && !p.ghost_vote_used) && (
+              <div className="day-row" style={{ marginTop: 8 }}>
+                <select
+                  className="day-select"
+                  value={ghostVoterId}
+                  onChange={(e) => setGhostVoterId(e.target.value)}
+                >
+                  <option value="">Ghost voter (optional)…</option>
+                  {players.filter((p) => !p.is_alive && !p.ghost_vote_used).map((p) => (
+                    <option key={p.id} value={p.id}>{p.display_name} †</option>
+                  ))}
+                </select>
+                {ghostVoterId && (
+                  <span className="day-ghost-vote-hint">Ghost vote will be marked used on Record</span>
+                )}
+              </div>
+            )}
           </section>
         )}
 
