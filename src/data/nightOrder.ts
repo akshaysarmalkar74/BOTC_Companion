@@ -275,7 +275,7 @@ export const NIGHT_STEPS: NightStepDef[] = [
     characterId: 'scarlet-woman',
     firstNight: false, otherNights: true,
     instruction:
-      'If the Imp just killed themselves, wake the Scarlet Woman. ' +
+      'The Imp chose themselves — wake the Scarlet Woman. ' +
       'Show them the Imp role token — they are now the Imp. Put them back to sleep.',
     targetCount: 0,
     autoReminders: [],
@@ -338,7 +338,7 @@ export const FIRST_NIGHT_ORDER: string[] = [
 ];
 
 export const OTHER_NIGHT_ORDER: string[] = [
-  'poisoner', 'monk', 'scarlet-woman', 'imp', 'ravenkeeper',
+  'poisoner', 'monk', 'imp', 'scarlet-woman', 'ravenkeeper',
   'undertaker', 'empath', 'fortune-teller', 'butler', 'spy',
 ];
 

@@ -418,7 +418,19 @@ export function NightAssistantPage() {
 
   // ── Scarlet Woman succession step ────────────────────────────────────
   const isSWSuccessionStep = currentStep.characterId === 'scarlet-woman';
-  const showRoleCharDef    = isSWSuccessionStep
+
+  // Check the Imp's already-saved action (Imp step now comes before SW).
+  // true  = Imp self-starred → succession applies
+  // false = Imp targeted someone else → skip
+  // null  = Imp action not yet saved (shouldn't happen with new order, but safe fallback)
+  const impPlayerForSW  = isSWSuccessionStep ? (players.find((p) => p.role === 'imp') ?? null) : null;
+  const impActionForSW  = isSWSuccessionStep ? (nightActions.find((a) => a.step_key === 'imp') ?? null) : null;
+  const swSuccessionTriggered: boolean | null =
+    isSWSuccessionStep && impPlayerForSW && impActionForSW
+      ? impActionForSW.target_ids[0] === impPlayerForSW.id
+      : null;
+
+  const showRoleCharDef = isSWSuccessionStep
     ? (TROUBLE_BREWING.find((c) => c.id === 'imp') ?? charDef)
     : charDef;
 
@@ -569,7 +581,7 @@ export function NightAssistantPage() {
               </span>
             )}
             <h2 className="step-char-name">{currentStep.label}</h2>
-            {charPlayer && (
+            {charPlayer && (isSWSuccessionStep ? swSuccessionTriggered === true : true) && (
               <>
                 <p className="step-player-label">
                   Wake <strong>{charPlayer.display_name}</strong>
@@ -603,6 +615,22 @@ export function NightAssistantPage() {
 
           {/* Instruction */}
           <p className="step-instruction">{currentStep.instruction}</p>
+
+          {/* Scarlet Woman: show whether succession applies based on Imp's saved action */}
+          {isSWSuccessionStep && swSuccessionTriggered === false && (
+            <div className="step-info-panel step-info-panel--muted">
+              <p className="step-info-panel-label">Succession does not apply tonight</p>
+              <p className="step-info-panel-hint">
+                The Imp targeted{' '}
+                <strong>
+                  {impActionForSW?.target_ids[0]
+                    ? (players.find((p) => p.id === impActionForSW.target_ids[0])?.display_name ?? 'another player')
+                    : 'another player'}
+                </strong>{' '}
+                — not themselves. Skip this step.
+              </p>
+            </div>
+          )}
 
           {/* Undertaker: executed player info + impairment handling */}
           {isUndertakerStep && (
