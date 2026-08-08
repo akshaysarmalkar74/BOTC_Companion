@@ -67,6 +67,7 @@ export function DayAssistantPage() {
   const [dayAbilityBanners, setDayAbilityBanners] = useState<DayAbilityResult[]>([]);
   const [slayerPlayerId, setSlayerPlayerId] = useState('');
   const [slayerTargetId, setSlayerTargetId] = useState('');
+  const [showExecuteConfirm, setShowExecuteConfirm] = useState(false);
   const [winAlert, setWinAlert]             = useState<WinDetection | null>(null);
   const [demonPromotion, setDemonPromotion] = useState<DemonPromotion | null>(null);
   const [endingGame, setEndingGame]         = useState(false);
@@ -409,6 +410,13 @@ export function DayAssistantPage() {
     navigate('/win');
   };
 
+  const handleStartNight = async () => {
+    if (!room) return;
+    const newPhase = `Night ${dayNumber + 1}`;
+    await supabase.from('rooms').update({ phase: newPhase, night_step_key: null }).eq('id', roomId);
+    navigate('/night');
+  };
+
   const handleSaveNotes = async () => {
     setNotesFocused(false);
     if (!room || dayNumber < 1) return;
@@ -594,25 +602,47 @@ export function DayAssistantPage() {
         {isDayPhase && (
           <section className="day-section">
             <h3 className="day-section-title">Execute Player</h3>
-            <div className="day-row">
-              <select
-                className="day-select"
-                value={executeId}
-                onChange={(e) => setExecuteId(e.target.value)}
-              >
-                <option value="">Select player…</option>
-                {players.filter((p) => p.is_alive).map((p) => (
-                  <option key={p.id} value={p.id}>{p.display_name}</option>
-                ))}
-              </select>
-              <button
-                className="btn day-execute-btn"
-                onClick={handleExecute}
-                disabled={!executeId}
-              >
-                Execute
-              </button>
-            </div>
+            {showExecuteConfirm ? (
+              <div className="day-execute-confirm">
+                <p className="day-execute-confirm-text">
+                  Execute <strong>{players.find((p) => p.id === executeId)?.display_name}</strong>? This cannot be undone.
+                </p>
+                <div className="day-row">
+                  <button
+                    className="btn day-execute-btn"
+                    onClick={() => { setShowExecuteConfirm(false); void handleExecute(); }}
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => { setShowExecuteConfirm(false); setExecuteId(''); }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="day-row">
+                <select
+                  className="day-select"
+                  value={executeId}
+                  onChange={(e) => { setExecuteId(e.target.value); setShowExecuteConfirm(false); }}
+                >
+                  <option value="">Select player…</option>
+                  {players.filter((p) => p.is_alive).map((p) => (
+                    <option key={p.id} value={p.id}>{p.display_name}</option>
+                  ))}
+                </select>
+                <button
+                  className="btn day-execute-btn"
+                  onClick={() => setShowExecuteConfirm(true)}
+                  disabled={!executeId}
+                >
+                  Execute
+                </button>
+              </div>
+            )}
           </section>
         )}
 
@@ -658,6 +688,28 @@ export function DayAssistantPage() {
           </section>
         )}
 
+        {/* ── Butler reminder (active day only, if Butler alive and master known) ── */}
+        {isDayPhase && (() => {
+          const butlerPlayer = players.find((p) => p.role === 'butler' && p.is_alive);
+          if (!butlerPlayer) return null;
+          const masterToken = reminderTokens.find((t) => t.token_key === 'butler-master');
+          const masterPlayer = masterToken ? players.find((p) => p.id === masterToken.player_id) : null;
+          return (
+            <section className="day-section">
+              <h3 className="day-section-title">Butler Restriction</h3>
+              <div className="step-info-panel step-info-panel--muted">
+                <p className="step-info-panel-label">
+                  {butlerPlayer.display_name} (Butler)
+                  {masterPlayer ? <> · Master: <strong>{masterPlayer.display_name}</strong></> : ' · Master not set'}
+                </p>
+                <p className="step-info-panel-hint">
+                  Butler may only vote on a nomination if their master votes first.
+                </p>
+              </div>
+            </section>
+          );
+        })()}
+
         {/* ── Mayor check (active day only) ── */}
         {isDayPhase && players.some((p) => p.role === 'mayor' && p.is_alive) && (
           <section className="day-section">
@@ -670,6 +722,19 @@ export function DayAssistantPage() {
               onClick={handleCheckMayor}
             >
               Check Mayor Condition
+            </button>
+          </section>
+        )}
+
+        {/* ── Start Night (active day only) ── */}
+        {isDayPhase && (
+          <section className="day-section">
+            <button
+              className="btn btn-primary"
+              style={{ width: '100%' }}
+              onClick={handleStartNight}
+            >
+              Start Night {dayNumber + 1} →
             </button>
           </section>
         )}
