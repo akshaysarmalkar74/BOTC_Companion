@@ -162,6 +162,49 @@ export function NightAssistantPage() {
     load();
   }, [roomId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Auto-select role token for Washerwoman / Librarian / Investigator ────
+  // When targets are selected on a non-impaired role-reveal step, compute the
+  // pool of valid role tokens. If exactly one option exists, select it
+  // automatically. If the current selection falls outside the pool (targets
+  // changed), clear it so stale tokens can't be confirmed.
+  useEffect(() => {
+    const step = currentIndex < activeSteps.length ? activeSteps[currentIndex] : null;
+    if (!step?.roleRevealTeam) return;
+
+    // Re-derive impairment inside the effect
+    const stepPlayer = step.characterId
+      ? (players.find((p) => p.role === step.characterId)
+          ?? players.find((p) => p.drunk_role === step.characterId)
+          ?? null)
+      : null;
+    const isImpaired = stepPlayer
+      ? stepPlayer.role === 'drunk' ||
+        reminderTokens.some(
+          (t) => t.player_id === stepPlayer.id && t.token_key === 'poisoner-poisoned',
+        )
+      : false;
+
+    if (isImpaired) return; // ST picks any role manually when impaired
+
+    if (localTargets.length === 0) {
+      setLocalRoleId('');
+      return;
+    }
+
+    const selectedRoles = localTargets
+      .map((id) => players.find((p) => p.id === id)?.role)
+      .filter(Boolean) as string[];
+    const pool = TROUBLE_BREWING.filter(
+      (c) => c.team === step.roleRevealTeam && selectedRoles.includes(c.id),
+    );
+
+    if (pool.length === 1) {
+      setLocalRoleId(pool[0].id); // exactly one match — auto-select
+    } else {
+      setLocalRoleId((prev) => (pool.some((c) => c.id === prev) ? prev : ''));
+    }
+  }, [localTargets, currentIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Helpers ───────────────────────────────────────────────────────────
 
   const nightNumber = room ? getNightNumber(room.phase) : 1;
