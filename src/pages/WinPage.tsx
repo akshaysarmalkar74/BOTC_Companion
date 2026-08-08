@@ -72,11 +72,14 @@ export function WinPage() {
   const outcomeLabel = isGood ? 'Good Wins!' : isEvil ? 'Evil Wins!' : 'Game Cancelled';
   const outcomeClass = isGood ? 'win--good' : isEvil ? 'win--evil' : 'win--cancelled';
 
-  // Find the demon player (for the dramatic reveal)
-  const demonPlayer = players.find((p) => {
-    const char = p.role ? TROUBLE_BREWING.find((c) => c.id === p.role) : null;
-    return char?.team === 'demon';
-  });
+  // Find the demon player (for the dramatic reveal).
+  // After Scarlet Woman succession there may be two players with role='imp':
+  // the dead original and the alive successor. Prefer the alive one.
+  const isDemonRole = (p: Player) =>
+    !!(p.role && TROUBLE_BREWING.find((c) => c.id === p.role)?.team === 'demon');
+  const demonPlayer =
+    players.find((p) => isDemonRole(p) && p.is_alive) ??
+    players.find((p) => isDemonRole(p));
   const demonChar = demonPlayer?.role
     ? TROUBLE_BREWING.find((c) => c.id === demonPlayer.role) ?? null
     : null;
