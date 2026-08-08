@@ -111,7 +111,7 @@ export function DayAssistantPage() {
           supabase
             .from('players')
             .select(
-              'id, display_name, seat_order, is_host, role, is_alive, ghost_vote_used, notes, room_id, created_at'
+              'id, display_name, seat_order, is_host, role, drunk_role, is_alive, ghost_vote_used, notes, room_id, created_at'
             )
             .eq('room_id', roomId)
             .eq('is_host', false)
@@ -199,6 +199,9 @@ export function DayAssistantPage() {
   const selectedPlayer    = selectedId ? players.find((p) => p.id === selectedId) ?? null : null;
   const selectedCharacter = selectedPlayer?.role
     ? TROUBLE_BREWING.find((c) => c.id === selectedPlayer.role) ?? null : null;
+  const selectedDrunkRoleChar = selectedPlayer?.role === 'drunk' && selectedPlayer.drunk_role
+    ? TROUBLE_BREWING.find((c) => c.id === selectedPlayer.drunk_role) ?? null
+    : null;
   const selectedTokens    = selectedId
     ? reminderTokens.filter((t) => t.player_id === selectedId) : [];
 
@@ -887,7 +890,7 @@ export function DayAssistantPage() {
         <PlayerDetailPanel
           player={selectedPlayer}
           character={selectedCharacter}
-          drunkRoleChar={null}
+          drunkRoleChar={selectedDrunkRoleChar}
           playerTokens={selectedTokens}
           onClose={() => setSelectedId(null)}
           onToggleAlive={handleToggleAlive}

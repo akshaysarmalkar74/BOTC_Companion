@@ -137,8 +137,9 @@ export function NightResolutionPage() {
       const execEvent = dayEvents.find((e) => e.event_type === 'execution');
       const executedPlayerId   = execEvent?.payload?.player_id;
       // Role snapshotted at execution time; fall back to current role in DB
-      const executedPlayerRole = execEvent?.payload?.role
-        ?? loadedPlayers.find((p) => p.id === executedPlayerId)?.role;
+      const executedPlayerRole: string | undefined = execEvent?.payload?.role
+        ?? loadedPlayers.find((p) => p.id === executedPlayerId)?.role
+        ?? undefined;
 
       // Run the rule engine
       const gameState = {

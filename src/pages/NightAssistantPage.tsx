@@ -535,6 +535,21 @@ export function NightAssistantPage() {
     const char = p.role ? TROUBLE_BREWING.find((c) => c.id === p.role) : null;
     return char && (char.team === 'townsfolk' || char.team === 'outsider');
   });
+  const ftImpaired = isFortuneTellerStep && (isCharPlayerDrunk || isCharPlayerPoisoned);
+  // FT answer: YES if either chosen player is the Demon OR is the red herring
+  const ftAnswer: boolean | null = isFortuneTellerStep && localTargets.length === 2
+    ? localTargets.some((id) => {
+        const p = players.find((pl) => pl.id === id);
+        const char = p?.role ? TROUBLE_BREWING.find((c) => c.id === p.role) : null;
+        return char?.team === 'demon' || id === redHerringPlayer?.id;
+      })
+    : null;
+
+  // ── Poisoner ─────────────────────────────────────────────────────────
+  const isPoisonerStep = currentStep.characterId === 'poisoner';
+  const poisonerTarget = isPoisonerStep && localTargets.length === 1
+    ? (players.find((p) => p.id === localTargets[0]) ?? null)
+    : null;
 
   // ── Spy ──────────────────────────────────────────────────────────────
   const isSpyStep = currentStep.characterId === 'spy';
@@ -862,6 +877,38 @@ export function NightAssistantPage() {
                   })}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Fortune Teller: answer panel once 2 targets are chosen */}
+          {isFortuneTellerStep && !ftImpaired && ftAnswer !== null && (
+            <div className={`step-info-panel step-info-panel--${ftAnswer ? 'demon' : 'townsfolk'}`}>
+              <p className="step-info-panel-label">Answer to give Fortune Teller</p>
+              <p className="step-info-panel-name" style={{ fontSize: '2rem' }}>
+                {ftAnswer ? 'YES' : 'NO'}
+              </p>
+              <p className="step-info-panel-hint">
+                {ftAnswer
+                  ? 'At least one chosen player is the Demon or the Red Herring.'
+                  : 'Neither chosen player is the Demon or the Red Herring.'}
+              </p>
+            </div>
+          )}
+          {isFortuneTellerStep && ftImpaired && localTargets.length === 2 && (
+            <div className="step-info-panel step-info-panel--muted">
+              <p className="step-info-panel-label">Fortune Teller is drunk / poisoned</p>
+              <p className="step-info-panel-hint">You may show YES or NO — ST's choice.</p>
+            </div>
+          )}
+
+          {/* Poisoner: confirm which player will be poisoned */}
+          {isPoisonerStep && poisonerTarget && (
+            <div className="step-info-panel step-info-panel--minion">
+              <p className="step-info-panel-label">Will be poisoned tonight</p>
+              <p className="step-info-panel-name">{poisonerTarget.display_name}</p>
+              <p className="step-info-panel-hint">
+                A <em>poisoner-poisoned</em> token will be placed on {poisonerTarget.display_name} when you tap Done.
+              </p>
             </div>
           )}
 
