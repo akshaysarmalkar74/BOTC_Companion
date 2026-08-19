@@ -210,7 +210,11 @@ export function NightAssistantPage() {
     // Spy registers as Townsfolk/Outsider — opens the full pool for those teams.
     // Does NOT apply when roleRevealTeam === 'minion': the Spy IS already a Minion
     // and should only be shown as 'spy', not as any arbitrary Minion.
-    const spyOpensPool = selectedRoles.includes('spy') && step.roleRevealTeam !== 'minion';
+    // Disabled when Spy is poisoned — misregistration ability fails.
+    const spyPlayer = players.find((p) => p.role === 'spy') ?? null;
+    const spyIsImpaired = !spyPlayer ||
+      reminderTokens.some((t) => t.player_id === spyPlayer.id && t.token_key === 'poisoner-poisoned');
+    const spyOpensPool = selectedRoles.includes('spy') && step.roleRevealTeam !== 'minion' && !spyIsImpaired;
 
     // Recluse registers as Minion for the Investigator — opens the full Minion pool.
     const recluseOpensPool = selectedRoles.includes('recluse') && step.roleRevealTeam === 'minion';
@@ -603,6 +607,12 @@ export function NightAssistantPage() {
 
   // ── Spy ──────────────────────────────────────────────────────────────
   const isSpyStep = currentStep.characterId === 'spy';
+  // True when the real Spy's misregistration ability is active (not poisoned).
+  // Used by Chef, Empath, Ravenkeeper etc. to gate registration notes.
+  // False when: Spy is poisoned, Spy is dead, no real Spy (e.g. Drunk pretending to be Spy).
+  const realSpyPlayer = players.find((p) => p.role === 'spy' && p.is_alive) ?? null;
+  const spyMisregActive = realSpyPlayer !== null &&
+    !reminderTokens.some((t) => t.player_id === realSpyPlayer.id && t.token_key === 'poisoner-poisoned');
 
   // ── Chef / Empath — pre-computed counts ──────────────────────────────
   // Build a minimal GameState so we can reuse the engine's pure functions.
@@ -870,7 +880,7 @@ export function NightAssistantPage() {
                 <p className="step-info-panel-hint">Show {chefPairCount} finger{chefPairCount !== 1 ? 's' : ''} to the Chef.</p>
               </div>
               {/* Spy / Recluse registration notes */}
-              {players.some((p) => p.role === 'spy') && (
+              {spyMisregActive && (
                 <p className="step-info-panel-hint step-registration-note">
                   Spy is in play and counted as evil above. If you want Spy to register as good tonight, subtract 1 from each adjacent evil pair they form.
                 </p>
@@ -897,8 +907,8 @@ export function NightAssistantPage() {
                 <p className="step-info-panel-name" style={{ fontSize: '2rem' }}>{empathNeighborCount}</p>
                 <p className="step-info-panel-hint">Show {empathNeighborCount} finger{empathNeighborCount !== 1 ? 's' : ''} to the Empath.</p>
               </div>
-              {/* Spy / Recluse registration notes — only shown when they are an alive neighbor */}
-              {empathNeighborRoles.includes('spy') && (
+              {/* Spy / Recluse registration notes — only shown when they are an alive neighbor and ability is active */}
+              {empathNeighborRoles.includes('spy') && spyMisregActive && (
                 <p className="step-info-panel-hint step-registration-note">
                   Spy is a living neighbor and counted as evil above. You may choose to have Spy register as good tonight (−1 from the count).
                 </p>
@@ -1104,8 +1114,20 @@ export function NightAssistantPage() {
             </div>
           )}
 
-          {/* Spy: full grimoire panel */}
-          {isSpyStep && (
+          {/* Spy: impaired — do NOT show grimoire, misregistration disabled */}
+          {isSpyStep && (isCharPlayerDrunk || isCharPlayerPoisoned) && (
+            <div className="step-info-panel step-info-panel--muted">
+              <p className="step-info-panel-label">
+                Spy is {isCharPlayerDrunk ? 'drunk' : 'poisoned'} — both abilities disabled
+              </p>
+              <p className="step-info-panel-hint">
+                Do NOT show the Grimoire. The Spy also cannot misregister — they count strictly as Evil / Minion for any ability that inspects them tonight.
+              </p>
+            </div>
+          )}
+
+          {/* Spy: full grimoire panel (healthy only) */}
+          {isSpyStep && !isCharPlayerDrunk && !isCharPlayerPoisoned && (
             <div className="step-grimoire">
               <p className="step-select-hint">Show the Spy this Grimoire:</p>
               <div className="step-grimoire-list">
@@ -1232,9 +1254,10 @@ export function NightAssistantPage() {
               ravenkeeperTargetChar && (
                 <>
                   {/* Spy / Recluse / Drunk registration notes */}
-                  {ravenkeeperTarget?.role === 'spy' && (
+                  {ravenkeeperTarget?.role === 'spy' &&
+                   !reminderTokens.some((t) => t.player_id === ravenkeeperTarget.id && t.token_key === 'poisoner-poisoned') && (
                     <p className="step-info-panel-hint step-registration-note">
-                      Spy was chosen. You may show a Townsfolk or Outsider token instead if the Spy is registering as good.
+                      Spy was killed. You may show a Townsfolk or Outsider token instead if the Spy is registering as good.
                     </p>
                   )}
                   {ravenkeeperTarget?.role === 'recluse' && (

@@ -103,11 +103,20 @@ export function checkVirgin(
     };
   }
 
-  // Spy can register as Townsfolk at the ST's discretion
+  // Spy can register as Townsfolk at the ST's discretion (unless poisoned/drunk)
   if (nominator.role === 'spy') {
+    if (isAbilityImpaired(state, nominator.id)) {
+      return {
+        type: 'virgin-no-trigger',
+        message: `Spy (${nominator.display_name}) nominated the Virgin but is poisoned/drunk — misregistration disabled. Spy registers strictly as Evil/Minion. Virgin ability does NOT trigger.`,
+        affectedPlayerIds: [virgin.id, nominatorId],
+        isStateChange: false,
+        requiresConfirmation: true,
+      };
+    }
     return {
       type: 'virgin-no-trigger',
-      message: `Spy (${nominator.display_name}) nominated the Virgin. Spy is Minion by default — ability does not trigger. If you want Spy to register as Townsfolk tonight, execute ${nominator.display_name} manually.`,
+      message: `Spy (${nominator.display_name}) nominated the Virgin. Spy is Minion by default — ability does not trigger. If you want Spy to register as Townsfolk, execute ${nominator.display_name} manually.`,
       affectedPlayerIds: [virgin.id, nominatorId],
       isStateChange: false,
       requiresConfirmation: true,
