@@ -197,6 +197,28 @@ export function checkSlayer(
     };
   }
 
+  // Dead target: ability spent but nothing happens (can't kill an already-dead player)
+  if (!target.is_alive) {
+    return {
+      type: 'slayer-miss',
+      message: `${slayer.display_name} (Slayer) targets ${target.display_name}, who is already dead — nothing happens. Slayer ability is spent.`,
+      affectedPlayerIds: [slayerPlayerId, targetId],
+      isStateChange: false,
+      requiresConfirmation: true,
+    };
+  }
+
+  // Recluse can register as Demon at ST discretion
+  if (target.role === 'recluse') {
+    return {
+      type: 'slayer-miss',
+      message: `${slayer.display_name} (Slayer) targets the Recluse (${target.display_name}). Recluse is not the Demon — nothing happens. If you want Recluse to register as Demon, kill ${target.display_name} manually.`,
+      affectedPlayerIds: [slayerPlayerId, targetId],
+      isStateChange: false,
+      requiresConfirmation: true,
+    };
+  }
+
   if (isDemon(state, targetId)) {
     return {
       type: 'slayer-hit',

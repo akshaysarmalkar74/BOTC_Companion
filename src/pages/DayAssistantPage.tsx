@@ -702,8 +702,10 @@ export function DayAssistantPage() {
                 onChange={(e) => setSlayerTargetId(e.target.value)}
               >
                 <option value="">Target…</option>
-                {players.filter((p) => p.is_alive).map((p) => (
-                  <option key={p.id} value={p.id}>{p.display_name}</option>
+                {players.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.display_name}{!p.is_alive ? ' †' : ''}
+                  </option>
                 ))}
               </select>
               <button
