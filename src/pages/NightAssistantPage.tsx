@@ -932,12 +932,25 @@ export function NightAssistantPage() {
                   </div>
                 ) : (
                   /* Not impaired: reveal real role */
-                  <button
-                    className="btn btn-secondary step-show-role-btn"
-                    onClick={() => setShowUndertakerReveal(true)}
-                  >
-                    Show {executedPlayer.display_name}'s role to {charPlayer?.display_name ?? 'Undertaker'} →
-                  </button>
+                  <>
+                    {/* Spy / Recluse registration notes */}
+                    {executedRoleId === 'spy' && (
+                      <p className="step-info-panel-hint step-registration-note">
+                        Spy was executed. You may show a Townsfolk or Outsider token instead if the Spy is registering as good.
+                      </p>
+                    )}
+                    {executedRoleId === 'recluse' && (
+                      <p className="step-info-panel-hint step-registration-note">
+                        Recluse was executed. You may show a Minion or Demon token instead if the Recluse is registering as evil.
+                      </p>
+                    )}
+                    <button
+                      className="btn btn-secondary step-show-role-btn"
+                      onClick={() => setShowUndertakerReveal(true)}
+                    >
+                      Show {executedPlayer.display_name}'s role to {charPlayer?.display_name ?? 'Undertaker'} →
+                    </button>
+                  </>
                 )}
               </>
             ) : (
