@@ -344,8 +344,9 @@ export function DayAssistantPage() {
     if (saintWin) {
       setWinAlert(saintWin);
     } else {
-      // Check SW succession before declaring Good wins
-      const promotion = detectScarletWomanPromotion(updatedPlayers);
+      // Check SW succession before declaring Good wins.
+      // Pass reminderTokens so a poisoned SW cannot succeed.
+      const promotion = detectScarletWomanPromotion(updatedPlayers, reminderTokens);
       if (promotion) {
         setDemonPromotion(promotion);
       } else {
@@ -406,8 +407,9 @@ export function DayAssistantPage() {
       await supabase.from('players').update({ is_alive: false }).eq('id', slayerTargetId);
       const updatedPlayers = players.map((p) => p.id === slayerTargetId ? { ...p, is_alive: false } : p);
       setPlayers(updatedPlayers);
-      // Check SW succession before declaring Good wins
-      const promotion = detectScarletWomanPromotion(updatedPlayers);
+      // Check SW succession before declaring Good wins.
+      // Pass reminderTokens so a poisoned SW cannot succeed.
+      const promotion = detectScarletWomanPromotion(updatedPlayers, reminderTokens);
       if (promotion) {
         setDemonPromotion(promotion);
       } else {

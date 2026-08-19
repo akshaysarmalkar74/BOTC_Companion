@@ -116,7 +116,7 @@ export const NIGHT_STEPS: NightStepDef[] = [
     skipWhenDead: true,
     conditional: false,
     selfAllowed: true,    // Poisoner may poison themselves (unusual but allowed)
-    deadAllowed: false,
+    deadAllowed: true,    // Poisoner may target dead players (disables post-death abilities)
   },
   {
     key: 'washerwoman',

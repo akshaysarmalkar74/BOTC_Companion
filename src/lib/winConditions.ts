@@ -13,7 +13,7 @@
  *   - Mayor win check             (checkMayor)
  */
 
-import type { Player } from '../types';
+import type { Player, ReminderToken } from '../types';
 import { TROUBLE_BREWING } from '../data/troubleBrewing';
 
 export interface WinDetection {
@@ -72,15 +72,26 @@ export function detectWinCondition(players: Player[]): WinDetection | null {
  *
  * Conditions (official rules):
  *   - All demons are dead in the updated player list
- *   - Scarlet Woman is alive
+ *   - Scarlet Woman is alive and NOT poisoned
  *   - ≥5 players remain alive (Demon's death is already reflected in players)
+ *
+ * @param reminderTokens - Optional; when provided, checks if SW is poisoned.
+ *   A poisoned SW cannot succeed: Good wins immediately if the Demon dies.
  */
-export function detectScarletWomanPromotion(players: Player[]): DemonPromotion | null {
+export function detectScarletWomanPromotion(
+  players: Player[],
+  reminderTokens?: ReminderToken[],
+): DemonPromotion | null {
   const alivePlayers = players.filter((p) => p.is_alive);
 
   // Scarlet Woman must be alive
   const sw = alivePlayers.find((p) => p.role === 'scarlet-woman');
   if (!sw) return null;
+
+  // Poisoned SW cannot become the new Demon
+  if (reminderTokens?.some((t) => t.player_id === sw.id && t.token_key === 'poisoner-poisoned')) {
+    return null;
+  }
 
   // At least 5 players alive (including the SW herself)
   if (alivePlayers.length < 5) return null;

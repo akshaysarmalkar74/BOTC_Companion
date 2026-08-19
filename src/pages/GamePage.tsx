@@ -181,8 +181,9 @@ export function GamePage() {
     // Record manual death (not resurrection) to history
     if (!newAlive && room) {
       void recordManualDeath(roomId, room.phase, targetId, allPlayers);
-      // Scarlet Woman promotion takes priority over Good-wins check
-      const promotion = detectScarletWomanPromotion(updatedPlayers);
+      // Scarlet Woman promotion takes priority over Good-wins check.
+      // Pass reminderTokens so a poisoned SW cannot succeed.
+      const promotion = detectScarletWomanPromotion(updatedPlayers, reminderTokens);
       if (promotion) {
         setDemonPromotion(promotion);
       } else {

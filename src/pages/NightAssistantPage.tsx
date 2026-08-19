@@ -389,7 +389,15 @@ export function NightAssistantPage() {
     try {
       const notesPayload = buildNotesPayload(currentStep);
       await saveAction(currentStep, localTargets, notesPayload);
-      if (currentStep.autoReminders.length > 0) {
+      // Skip auto-reminders when the acting character is impaired (Drunk).
+      // A Drunk character's ability has no effect — do not place effect tokens.
+      const actingPlayer = currentStep.characterId
+        ? (players.find((p) => p.role === currentStep.characterId)
+            ?? players.find((p) => p.drunk_role === currentStep.characterId)
+            ?? null)
+        : null;
+      const actingIsDrunk = actingPlayer?.role === 'drunk';
+      if (currentStep.autoReminders.length > 0 && !actingIsDrunk) {
         await placeAutoReminders(currentStep, localTargets);
       }
       await advanceToIndex(currentIndex + 1);
@@ -509,6 +517,11 @@ export function NightAssistantPage() {
     ? (TROUBLE_BREWING.find((c) => c.id === 'imp') ?? charDef)
     : charDef;
 
+  // Poisoned Scarlet Woman cannot succeed even if Imp self-stars
+  const swIsPoisoned = isSWSuccessionStep && charPlayer
+    ? reminderTokens.some((t) => t.player_id === charPlayer.id && t.token_key === 'poisoner-poisoned')
+    : false;
+
   // ── Undertaker ───────────────────────────────────────────────────────
   const isUndertakerStep     = currentStep.characterId === 'undertaker';
   const executedPlayer       = executedPlayerId ? players.find((p) => p.id === executedPlayerId) ?? null : null;
@@ -582,8 +595,9 @@ export function NightAssistantPage() {
   const butlerImpaired = isButlerStep && (isCharPlayerDrunk || isCharPlayerPoisoned);
 
   // ── Poisoner ─────────────────────────────────────────────────────────
-  const isPoisonerStep = currentStep.characterId === 'poisoner';
-  const poisonerTarget = isPoisonerStep && localTargets.length === 1
+  const isPoisonerStep    = currentStep.characterId === 'poisoner';
+  const poisonerImpaired  = isPoisonerStep && isCharPlayerDrunk; // only Drunk applies (can't be self-poisoned during step)
+  const poisonerTarget    = isPoisonerStep && !poisonerImpaired && localTargets.length === 1
     ? (players.find((p) => p.id === localTargets[0]) ?? null)
     : null;
 
@@ -816,6 +830,17 @@ export function NightAssistantPage() {
                     : 'another player'}
                 </strong>{' '}
                 — not themselves. Skip this step.
+              </p>
+            </div>
+          )}
+
+          {/* Scarlet Woman: poisoned — succession fails even if Imp self-starred */}
+          {isSWSuccessionStep && swSuccessionTriggered === true && swIsPoisoned && (
+            <div className="step-info-panel step-info-panel--muted">
+              <p className="step-info-panel-label">Scarlet Woman is poisoned — succession FAILS</p>
+              <p className="step-info-panel-hint">
+                The Imp self-starred but the Scarlet Woman is poisoned — she cannot become the new Imp.
+                Good wins immediately (if no other Demon exists). Do NOT wake or promote the Scarlet Woman.
               </p>
             </div>
           )}
@@ -1058,7 +1083,17 @@ export function NightAssistantPage() {
             </div>
           )}
 
-          {/* Poisoner: confirm which player will be poisoned */}
+          {/* Poisoner: impaired (Drunk-Poisoner) — no token will be placed */}
+          {isPoisonerStep && poisonerImpaired && (
+            <div className="step-info-panel step-info-panel--muted">
+              <p className="step-info-panel-label">Poisoner is drunk — action has no effect</p>
+              <p className="step-info-panel-hint">
+                Wake the Drunk as normal and let them point to a target, but no poison token will be placed. The target is unaffected.
+              </p>
+            </div>
+          )}
+
+          {/* Poisoner: confirm which player will be poisoned (not impaired) */}
           {isPoisonerStep && poisonerTarget && (
             <div className="step-info-panel step-info-panel--minion">
               <p className="step-info-panel-label">Will be poisoned tonight</p>
