@@ -18,6 +18,7 @@ import {
   getAlivePlayerByRole,
   getPlayerByRole,
   aliveCount,
+  isAbilityImpaired,
 } from '../stateEngine';
 
 const SUCCESSION_THRESHOLD = 5;
@@ -60,6 +61,29 @@ export const ScarletWomanResolver: RoleResolver = {
           suggestions: [
             ...resolution.suggestions,
             `Scarlet Woman succession does not apply: fewer than ${SUCCESSION_THRESHOLD} players alive after the Imp's death.`,
+          ],
+        },
+      };
+    }
+
+    // Poisoned / Drunk Scarlet Woman cannot succeed (Case 3)
+    if (isAbilityImpaired(state, sw.id)) {
+      return {
+        ...ctx,
+        resolution: {
+          ...resolution,
+          events: [
+            ...resolution.events,
+            {
+              id: makeEventId(),
+              type: 'advisory',
+              description: `Scarlet Woman (${sw.display_name}) is poisoned/drunk — succession FAILS. Good wins.`,
+              affectedPlayerIds: [sw.id],
+            },
+          ],
+          suggestions: [
+            ...resolution.suggestions,
+            `Scarlet Woman is poisoned/drunk — she cannot become the Imp. The Demon is dead with no successor: Good wins.`,
           ],
         },
       };
