@@ -614,6 +614,11 @@ export function NightAssistantPage() {
   const spyMisregActive = realSpyPlayer !== null &&
     !reminderTokens.some((t) => t.player_id === realSpyPlayer.id && t.token_key === 'poisoner-poisoned');
 
+  // ── Baron ────────────────────────────────────────────────────────────
+  // Baron has no night waking ability — only a setup-phase effect (+2 Outsiders).
+  // We show a reminder note on Night 1 in the minion-info step.
+  const baronInScript = Array.isArray(room?.script) && (room!.script as string[]).includes('baron');
+
   // ── Chef / Empath — pre-computed counts ──────────────────────────────
   // Build a minimal GameState so we can reuse the engine's pure functions.
   const gameStateForCounts = {
@@ -676,7 +681,8 @@ export function NightAssistantPage() {
             .filter(Boolean) as string[];
           // Spy can register as any Townsfolk/Outsider but is already a Minion —
           // so pool expansion only applies when roleRevealTeam is NOT 'minion'.
-          const spyOpensPool = selectedRoles.includes('spy') && currentStep.roleRevealTeam !== 'minion';
+          // Disabled when Spy is poisoned (spyMisregActive === false).
+          const spyOpensPool = selectedRoles.includes('spy') && currentStep.roleRevealTeam !== 'minion' && spyMisregActive;
           // Recluse is an Outsider but can register as any Minion for Investigator.
           const recluseOpensPool = selectedRoles.includes('recluse') && currentStep.roleRevealTeam === 'minion';
           return TROUBLE_BREWING.filter((c) => {
@@ -867,6 +873,17 @@ export function NightAssistantPage() {
                     : 'another player'}
                 </strong>{' '}
                 — ability does not trigger. Skip this step.
+              </p>
+            </div>
+          )}
+
+          {/* Baron: setup reminder on Night 1 minion-info step */}
+          {currentStep.key === 'minion-info' && baronInScript && (
+            <div className="step-info-panel step-info-panel--minion">
+              <p className="step-info-panel-label">Baron is in play — setup reminder</p>
+              <p className="step-info-panel-hint">
+                The Baron adds <strong>+2 Outsiders</strong> to the character bag (replacing 2 Townsfolk tokens).
+                This modification was made before the game started. The Baron does not wake at night — no action is required for them.
               </p>
             </div>
           )}
