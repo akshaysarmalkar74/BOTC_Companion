@@ -203,6 +203,16 @@ export function NightAssistantPage() {
     const selectedRoles = localTargets
       .map((id) => players.find((p) => p.id === id)?.role)
       .filter(Boolean) as string[];
+
+    // Spy can register as any role of the revealed team — don't auto-select
+    if (selectedRoles.includes('spy')) {
+      // Keep existing selection only if it's still in the correct team
+      setLocalRoleId((prev) =>
+        TROUBLE_BREWING.some((c) => c.id === prev && c.team === step.roleRevealTeam) ? prev : '',
+      );
+      return;
+    }
+
     const pool = TROUBLE_BREWING.filter(
       (c) => c.team === step.roleRevealTeam && selectedRoles.includes(c.id),
     );
@@ -595,18 +605,26 @@ export function NightAssistantPage() {
 
   // Role reveal pool for Washerwoman / Librarian / Investigator.
   // When the character is impaired (drunk/poisoned), all TB roles are available so
-  // the ST can show any misleading token. Otherwise only matching roles of the
-  // correct team among the selected players are shown.
+  // the ST can show any misleading token.
+  // When healthy, only roles of the correct team from the selected players are shown —
+  // EXCEPT when the Spy is one of the selected players: the Spy may register as any
+  // role of the revealed team, so the full team list is offered.
   const isRoleRevealImpaired = !!currentStep.roleRevealTeam && (isCharPlayerDrunk || isCharPlayerPoisoned);
   const roleRevealPool = currentStep.roleRevealTeam && localTargets.length > 0
     ? isRoleRevealImpaired
       ? TROUBLE_BREWING // any role when impaired
-      : TROUBLE_BREWING.filter((c) => {
+      : (() => {
           const selectedRoles = localTargets
             .map((id) => players.find((p) => p.id === id)?.role)
             .filter(Boolean) as string[];
-          return c.team === currentStep.roleRevealTeam && selectedRoles.includes(c.id);
-        })
+          const hasSpy = selectedRoles.includes('spy');
+          return TROUBLE_BREWING.filter((c) => {
+            if (c.team !== currentStep.roleRevealTeam) return false;
+            // Spy can register as any role of the target team
+            if (hasSpy) return true;
+            return selectedRoles.includes(c.id);
+          });
+        })()
     : [];
 
   const doneLabel = saving
