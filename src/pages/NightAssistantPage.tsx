@@ -1174,12 +1174,25 @@ export function NightAssistantPage() {
               </div>
             ) : (
               ravenkeeperTargetChar && (
-                <button
-                  className="btn btn-secondary step-show-role-btn"
-                  onClick={() => setShowTargetReveal(true)}
-                >
-                  Show {ravenkeeperTarget.display_name}'s role to Ravenkeeper →
-                </button>
+                <>
+                  {/* Spy / Recluse registration notes */}
+                  {ravenkeeperTarget?.role === 'spy' && (
+                    <p className="step-info-panel-hint step-registration-note">
+                      Spy was chosen. You may show a Townsfolk or Outsider token instead if the Spy is registering as good.
+                    </p>
+                  )}
+                  {ravenkeeperTarget?.role === 'recluse' && (
+                    <p className="step-info-panel-hint step-registration-note">
+                      Recluse was chosen. You may show a Minion or Demon token instead if the Recluse is registering as evil.
+                    </p>
+                  )}
+                  <button
+                    className="btn btn-secondary step-show-role-btn"
+                    onClick={() => setShowTargetReveal(true)}
+                  >
+                    Show {ravenkeeperTarget.display_name}'s role to Ravenkeeper →
+                  </button>
+                </>
               )
             )
           )}
