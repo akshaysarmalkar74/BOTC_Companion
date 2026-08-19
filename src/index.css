@@ -2600,6 +2600,30 @@ button, select, input, textarea {
   align-self: flex-start;
 }
 
+/* ── Librarian: zero-outsiders toggle ── */
+
+.step-zero-outsiders {
+  margin: 10px 0;
+}
+
+.step-zero-btn {
+  padding: 6px 14px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-mid);
+  background: var(--surface-high);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.step-zero-btn.active {
+  background: rgba(79, 168, 154, 0.12);
+  border-color: rgba(79, 168, 154, 0.40);
+  color: var(--online);
+}
+
 /* ── Impaired role reveal section (Washerwoman/Librarian/Investigator) ── */
 
 .step-role-reveal-section--impaired {

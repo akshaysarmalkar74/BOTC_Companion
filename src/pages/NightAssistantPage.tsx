@@ -38,6 +38,7 @@ export function NightAssistantPage() {
   const [showTargetReveal, setShowTargetReveal]   = useState(false);
   const [showUndertakerReveal, setShowUndertakerReveal] = useState(false);
   const [localFalseRoleId, setLocalFalseRoleId]   = useState('');
+  const [localZeroOutsiders, setLocalZeroOutsiders] = useState(false);
   const [executedPlayerId, setExecutedPlayerId]         = useState<string | null>(null);
   const [executedPlayerRoleSnapshot, setExecutedPlayerRoleSnapshot] = useState<string | null>(null);
   const [showProgress, setShowProgress]     = useState(false);
@@ -159,6 +160,7 @@ export function NightAssistantPage() {
               setLocalNotes(parsed.text ?? '');
               setLocalBluffs(parsed.bluffs ?? []);
               setLocalRoleId(parsed.roleId ?? '');
+              setLocalZeroOutsiders(parsed.zeroOutsiders ?? false);
             } catch {
               setLocalNotes(saved.notes);
             }
@@ -236,6 +238,7 @@ export function NightAssistantPage() {
     setShowTargetReveal(false);
     setShowUndertakerReveal(false);
     setLocalFalseRoleId('');
+    setLocalZeroOutsiders(false);
     const saved = nightActions.find((a) => a.step_key === stepKey);
     setLocalTargets(saved?.target_ids ?? []);
     if (saved?.notes) {
@@ -244,6 +247,7 @@ export function NightAssistantPage() {
         setLocalNotes(parsed.text ?? '');
         setLocalBluffs(parsed.bluffs ?? []);
         setLocalRoleId(parsed.roleId ?? '');
+        setLocalZeroOutsiders(parsed.zeroOutsiders ?? false);
       } catch {
         setLocalNotes(saved.notes);
         setLocalBluffs([]);
@@ -364,6 +368,7 @@ export function NightAssistantPage() {
       return JSON.stringify({
         ...(step.isDemonInfo && { bluffs: localBluffs }),
         ...(step.roleRevealTeam && { roleId: localRoleId }),
+        ...(step.roleRevealTeam === 'outsider' && localZeroOutsiders && { zeroOutsiders: true }),
         ...(localNotes && { text: localNotes }),
       });
     }
@@ -555,6 +560,9 @@ export function NightAssistantPage() {
       })
     : null;
 
+  // ── Librarian ─────────────────────────────────────────────────────────
+  const isLibrarianStep = currentStep.characterId === 'librarian';
+
   // ── Poisoner ─────────────────────────────────────────────────────────
   const isPoisonerStep = currentStep.characterId === 'poisoner';
   const poisonerTarget = isPoisonerStep && localTargets.length === 1
@@ -740,6 +748,33 @@ export function NightAssistantPage() {
 
           {/* Instruction */}
           <p className="step-instruction">{currentStep.instruction}</p>
+
+          {/* Librarian: zero-outsiders toggle */}
+          {isLibrarianStep && (
+            <div className="step-zero-outsiders">
+              <button
+                className={`step-zero-btn${localZeroOutsiders ? ' active' : ''}`}
+                onClick={() => {
+                  setLocalZeroOutsiders((v) => !v);
+                  if (!localZeroOutsiders) {
+                    // Clear player selection and role token when switching to "0" mode
+                    setLocalTargets([]);
+                    setLocalRoleId('');
+                  }
+                }}
+              >
+                {localZeroOutsiders ? '✓ Zero Outsiders in play' : 'Zero Outsiders in play'}
+              </button>
+              {localZeroOutsiders && (
+                <div className="step-info-panel step-info-panel--muted" style={{ marginTop: 10 }}>
+                  <p className="step-info-panel-label">Show the Librarian a "0"</p>
+                  <p className="step-info-panel-hint">
+                    No Outsiders are in play. Signal zero to the Librarian — no player tokens needed.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Scarlet Woman: show whether succession applies based on Imp's saved action */}
           {isSWSuccessionStep && swSuccessionTriggered === false && (
@@ -965,7 +1000,7 @@ export function NightAssistantPage() {
           )}
 
           {/* Player selection */}
-          {currentStep.targetCount > 0 && (!isRavenkeeperStep || rkKilledByImp !== false) && (
+          {currentStep.targetCount > 0 && (!isRavenkeeperStep || rkKilledByImp !== false) && !localZeroOutsiders && (
             <div className="step-player-section">
               <p className="step-select-hint">
                 {currentStep.targetCount === 1
@@ -1130,7 +1165,7 @@ export function NightAssistantPage() {
           )}
 
           {/* Role reveal (Washerwoman / Librarian / Investigator) */}
-          {currentStep.roleRevealTeam && (
+          {currentStep.roleRevealTeam && !localZeroOutsiders && (
             <div className={`step-role-reveal-section${isRoleRevealImpaired ? ' step-role-reveal-section--impaired' : ''}`}>
               {isRoleRevealImpaired && (
                 <p className="step-impaired-label">
