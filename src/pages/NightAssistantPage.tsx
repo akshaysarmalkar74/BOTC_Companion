@@ -820,11 +820,24 @@ export function NightAssistantPage() {
 
           {/* Chef: show adjacent evil pair count (Night 1 only) */}
           {isChefStep && !chefImpaired && chefPairCount !== null && (
-            <div className="step-info-panel step-info-panel--townsfolk">
-              <p className="step-info-panel-label">Adjacent evil pairs tonight</p>
-              <p className="step-info-panel-name" style={{ fontSize: '2rem' }}>{chefPairCount}</p>
-              <p className="step-info-panel-hint">Show {chefPairCount} finger{chefPairCount !== 1 ? 's' : ''} to the Chef.</p>
-            </div>
+            <>
+              <div className="step-info-panel step-info-panel--townsfolk">
+                <p className="step-info-panel-label">Adjacent evil pairs tonight</p>
+                <p className="step-info-panel-name" style={{ fontSize: '2rem' }}>{chefPairCount}</p>
+                <p className="step-info-panel-hint">Show {chefPairCount} finger{chefPairCount !== 1 ? 's' : ''} to the Chef.</p>
+              </div>
+              {/* Spy / Recluse registration notes */}
+              {players.some((p) => p.role === 'spy') && (
+                <p className="step-info-panel-hint step-registration-note">
+                  Spy is in play and counted as evil above. If you want Spy to register as good tonight, subtract 1 from each adjacent evil pair they form.
+                </p>
+              )}
+              {players.some((p) => p.role === 'recluse') && (
+                <p className="step-info-panel-hint step-registration-note">
+                  Recluse is in play and counted as good above. If you want Recluse to register as evil tonight, add 1 for each adjacent evil player they sit next to.
+                </p>
+              )}
+            </>
           )}
           {isChefStep && chefImpaired && (
             <div className="step-info-panel step-info-panel--muted">

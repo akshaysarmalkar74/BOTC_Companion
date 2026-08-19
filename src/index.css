@@ -2624,6 +2624,19 @@ button, select, input, textarea {
   color: var(--online);
 }
 
+/* ── Spy / Recluse registration notes (Chef, Empath) ── */
+
+.step-registration-note {
+  margin: 6px 0 0;
+  padding: 8px 12px;
+  font-size: 0.775rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border-left: 3px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  line-height: 1.4;
+}
+
 /* ── Impaired role reveal section (Washerwoman/Librarian/Investigator) ── */
 
 .step-role-reveal-section--impaired {
