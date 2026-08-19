@@ -598,6 +598,9 @@ export function NightAssistantPage() {
   const isButlerStep   = currentStep.characterId === 'butler';
   const butlerImpaired = isButlerStep && (isCharPlayerDrunk || isCharPlayerPoisoned);
 
+  // ── Imp ──────────────────────────────────────────────────────────────
+  const isImpStep = currentStep.characterId === 'imp';
+
   // ── Poisoner ─────────────────────────────────────────────────────────
   const isPoisonerStep    = currentStep.characterId === 'poisoner';
   const poisonerImpaired  = isPoisonerStep && isCharPlayerDrunk; // only Drunk applies (can't be self-poisoned during step)
@@ -1174,6 +1177,19 @@ export function NightAssistantPage() {
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* Imp: impaired (poisoned/drunk) — kill fails this night */}
+          {isImpStep && (isCharPlayerDrunk || isCharPlayerPoisoned) && (
+            <div className="step-info-panel step-info-panel--muted">
+              <p className="step-info-panel-label">
+                Imp is {isCharPlayerDrunk ? 'drunk' : 'poisoned'} — kill fails tonight
+              </p>
+              <p className="step-info-panel-hint">
+                Wake the Imp as normal and let them choose a target, but the attack does nothing — no one dies.
+                If they self-target, they do NOT die and no Minion succession occurs.
+              </p>
             </div>
           )}
 
