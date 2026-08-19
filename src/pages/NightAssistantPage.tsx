@@ -1193,7 +1193,7 @@ export function NightAssistantPage() {
         <div className="reveal-overlay" onClick={() => setShowUndertakerReveal(false)}>
           <div className="reveal-content" onClick={(e) => e.stopPropagation()}>
             <p className="reveal-eyebrow">
-              {undertakerIsImpaired ? 'False information' : 'The executed player was'}
+              The executed player was
             </p>
             <h2 className="reveal-title">{executedPlayer.display_name}</h2>
             <div className={`reveal-role-card reveal-role-card--${undertakerRevealChar.team} reveal-role-card--solo`}>
@@ -1213,7 +1213,7 @@ export function NightAssistantPage() {
         <div className="reveal-overlay" onClick={() => setShowTargetReveal(false)}>
           <div className="reveal-content" onClick={(e) => e.stopPropagation()}>
             <p className="reveal-eyebrow">
-              {ravenkeeperIsImpaired ? 'False information' : 'Their role'}
+              Their role
             </p>
             <h2 className="reveal-title">{ravenkeeperTarget.display_name}</h2>
             <div className={`reveal-role-card reveal-role-card--${ravenkeeperRevealChar.team} reveal-role-card--solo`}>
