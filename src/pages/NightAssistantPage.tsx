@@ -12,6 +12,7 @@ import type { Player, Room, ReminderToken, NightAction } from '../types';
 import {
   countAdjacentEvilPairs,
   countEvilAliveNeighbors,
+  getAliveNeighbors,
   isAbilityImpaired,
 } from '../engine/stateEngine';
 
@@ -605,6 +606,13 @@ export function NightAssistantPage() {
   const empathNeighborCount = isEmpathStep && charPlayer && !empathImpaired
     ? countEvilAliveNeighbors(gameStateForCounts, charPlayer.id)
     : null;
+  // Identify which alive neighbors are Spy or Recluse so we can show notes
+  const empathNeighborRoles: string[] = isEmpathStep && charPlayer && !empathImpaired
+    ? (() => {
+        const [left, right] = getAliveNeighbors(gameStateForCounts, charPlayer.id);
+        return [left?.role, right?.role].filter(Boolean) as string[];
+      })()
+    : [];
 
   // Demon bluffs: ALL Trouble Brewing roles NOT assigned to any player
   const assignedRoles = new Set(players.map((p) => p.role).filter(Boolean));
@@ -848,11 +856,24 @@ export function NightAssistantPage() {
 
           {/* Empath: show evil alive neighbour count */}
           {isEmpathStep && !empathImpaired && empathNeighborCount !== null && (
-            <div className="step-info-panel step-info-panel--townsfolk">
-              <p className="step-info-panel-label">Evil alive neighbours</p>
-              <p className="step-info-panel-name" style={{ fontSize: '2rem' }}>{empathNeighborCount}</p>
-              <p className="step-info-panel-hint">Show {empathNeighborCount} finger{empathNeighborCount !== 1 ? 's' : ''} to the Empath.</p>
-            </div>
+            <>
+              <div className="step-info-panel step-info-panel--townsfolk">
+                <p className="step-info-panel-label">Evil alive neighbours</p>
+                <p className="step-info-panel-name" style={{ fontSize: '2rem' }}>{empathNeighborCount}</p>
+                <p className="step-info-panel-hint">Show {empathNeighborCount} finger{empathNeighborCount !== 1 ? 's' : ''} to the Empath.</p>
+              </div>
+              {/* Spy / Recluse registration notes — only shown when they are an alive neighbor */}
+              {empathNeighborRoles.includes('spy') && (
+                <p className="step-info-panel-hint step-registration-note">
+                  Spy is a living neighbor and counted as evil above. You may choose to have Spy register as good tonight (−1 from the count).
+                </p>
+              )}
+              {empathNeighborRoles.includes('recluse') && (
+                <p className="step-info-panel-hint step-registration-note">
+                  Recluse is a living neighbor and counted as good above. You may choose to have Recluse register as evil tonight (+1 to the count).
+                </p>
+              )}
+            </>
           )}
           {isEmpathStep && empathImpaired && (
             <div className="step-info-panel step-info-panel--muted">
