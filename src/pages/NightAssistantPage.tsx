@@ -554,7 +554,9 @@ export function NightAssistantPage() {
   const redHerringPlayer    = redHerringToken
     ? (players.find((p) => p.id === redHerringToken.player_id) ?? null)
     : null;
+  // Red Herring candidates: good players, excluding the Fortune Teller themselves
   const goodPlayers = players.filter((p) => {
+    if (charPlayer && p.id === charPlayer.id) return false; // FT cannot be their own red herring
     const char = p.role ? TROUBLE_BREWING.find((c) => c.id === p.role) : null;
     return char && (char.team === 'townsfolk' || char.team === 'outsider');
   });
@@ -979,17 +981,25 @@ export function NightAssistantPage() {
 
           {/* Fortune Teller: answer panel once 2 targets are chosen */}
           {isFortuneTellerStep && !ftImpaired && ftAnswer !== null && (
-            <div className={`step-info-panel step-info-panel--${ftAnswer ? 'demon' : 'townsfolk'}`}>
-              <p className="step-info-panel-label">Answer to give Fortune Teller</p>
-              <p className="step-info-panel-name" style={{ fontSize: '2rem' }}>
-                {ftAnswer ? 'YES' : 'NO'}
-              </p>
-              <p className="step-info-panel-hint">
-                {ftAnswer
-                  ? 'At least one chosen player is the Demon or the Red Herring.'
-                  : 'Neither chosen player is the Demon or the Red Herring.'}
-              </p>
-            </div>
+            <>
+              <div className={`step-info-panel step-info-panel--${ftAnswer ? 'demon' : 'townsfolk'}`}>
+                <p className="step-info-panel-label">Answer to give Fortune Teller</p>
+                <p className="step-info-panel-name" style={{ fontSize: '2rem' }}>
+                  {ftAnswer ? 'YES' : 'NO'}
+                </p>
+                <p className="step-info-panel-hint">
+                  {ftAnswer
+                    ? 'At least one chosen player is the Demon or the Red Herring.'
+                    : 'Neither chosen player is the Demon or the Red Herring.'}
+                </p>
+              </div>
+              {/* Recluse can register as Demon — show override note if Recluse is a target */}
+              {!ftAnswer && localTargets.some((id) => players.find((p) => p.id === id)?.role === 'recluse') && (
+                <p className="step-info-panel-hint step-registration-note">
+                  Recluse is one of the chosen players. You may give YES if you want Recluse to register as the Demon tonight.
+                </p>
+              )}
+            </>
           )}
           {isFortuneTellerStep && ftImpaired && localTargets.length === 2 && (
             <div className="step-info-panel step-info-panel--muted">

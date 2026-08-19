@@ -221,8 +221,8 @@ export const NIGHT_STEPS: NightStepDef[] = [
     autoReminders: [],
     skipWhenDead: true,
     conditional: false,
-    selfAllowed: false,
-    deadAllowed: false,
+    selfAllowed: true,   // Fortune Teller may point to themselves
+    deadAllowed: true,   // Fortune Teller may point to dead players (dead Demons still count)
     targetsMustDiffer: true,
   },
   {
