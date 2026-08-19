@@ -117,13 +117,18 @@ export function RoleAssignmentPage() {
     players.forEach((p, i) => {
       if (chars[i]) next[p.id] = chars[i];
     });
-    // Auto-pick a random Townsfolk from the script for any Drunk player
+    // Auto-pick a random Townsfolk from the script for any Drunk player.
+    // Exclude roles already assigned to other players so drunk_role stays unique.
+    const assignedRoles = new Set(Object.values(next));
     const townsfolkIds = script.filter(
       (id) => TROUBLE_BREWING.find((c) => c.id === id)?.team === 'townsfolk'
     );
     for (const [pid, cid] of Object.entries(next)) {
-      if (cid === 'drunk' && townsfolkIds.length > 0) {
-        nextDrunk[pid] = townsfolkIds[Math.floor(Math.random() * townsfolkIds.length)];
+      if (cid === 'drunk') {
+        const available = townsfolkIds.filter((id) => !assignedRoles.has(id));
+        if (available.length > 0) {
+          nextDrunk[pid] = available[Math.floor(Math.random() * available.length)];
+        }
       }
     }
     setAssignments(next);
@@ -295,7 +300,7 @@ export function RoleAssignmentPage() {
                                 .map((id) => TROUBLE_BREWING.find((c) => c.id === id))
                                 .filter(
                                   (c): c is NonNullable<typeof c> =>
-                                    !!c && c.team === 'townsfolk'
+                                    !!c && c.team === 'townsfolk' && !taken.has(c.id)
                                 )
                                 .map((c) => (
                                   <option key={c.id} value={c.id}>
