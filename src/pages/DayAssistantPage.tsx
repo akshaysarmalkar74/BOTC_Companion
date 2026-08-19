@@ -359,6 +359,33 @@ export function DayAssistantPage() {
 
   const handleSlayer = async () => {
     if (!slayerPlayerId || !slayerTargetId || !room) return;
+
+    // Drunk-Slayer: ability is always impaired — nothing happens regardless of target
+    const slayerPlayer = players.find((p) => p.id === slayerPlayerId);
+    if (slayerPlayer?.role === 'drunk') {
+      const result: DayAbilityResult = {
+        type: 'slayer-miss',
+        message: `${slayerPlayer.display_name} is drunk — their Slayer ability does not work. Nothing happens.`,
+        affectedPlayerIds: [slayerPlayerId, slayerTargetId],
+        isStateChange: false,
+        requiresConfirmation: true,
+      };
+      addBanner(result);
+      await supabase.from('reminder_tokens').insert({
+        player_id: slayerPlayerId, room_id: room.id, token_key: 'slayer-used',
+      });
+      void recordEvent({
+        roomId: room.id, phase: room.phase,
+        type: 'resolution_advisory',
+        description: result.message,
+        playerIds: result.affectedPlayerIds,
+        metadata: { abilityType: result.type },
+      });
+      setSlayerPlayerId('');
+      setSlayerTargetId('');
+      return;
+    }
+
     const gs = buildGameState(players, reminderTokens);
     const result = checkSlayer(gs, slayerPlayerId, slayerTargetId);
     if (!result) return;
@@ -701,7 +728,7 @@ export function DayAssistantPage() {
         )}
 
         {/* ── Slayer action (active day only, if Slayer in game and ability not yet used) ── */}
-        {isDayPhase && players.some((p) => p.role === 'slayer' && p.is_alive) &&
+        {isDayPhase && players.some((p) => (p.role === 'slayer' || p.drunk_role === 'slayer') && p.is_alive) &&
          !reminderTokens.some((t) => t.token_key === 'slayer-used') && (
           <section className="day-section">
             <h3 className="day-section-title">Slayer Action</h3>
@@ -716,7 +743,7 @@ export function DayAssistantPage() {
                 onChange={(e) => setSlayerPlayerId(e.target.value)}
               >
                 <option value="">Slayer is…</option>
-                {players.filter((p) => p.role === 'slayer' && p.is_alive).map((p) => (
+                {players.filter((p) => (p.role === 'slayer' || p.drunk_role === 'slayer') && p.is_alive).map((p) => (
                   <option key={p.id} value={p.id}>{p.display_name}</option>
                 ))}
               </select>

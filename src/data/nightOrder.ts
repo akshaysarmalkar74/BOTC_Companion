@@ -382,14 +382,23 @@ export function computeActiveSteps(
       continue;
     }
 
-    // Character steps: must be in the script
-    if (!def.characterId || !scriptSet.has(def.characterId)) continue;
+    // Character steps: must be in the script OR a Drunk player is acting in this slot.
+    // When the Drunk's drunk_role matches this step, the step is included even if the
+    // underlying Townsfolk character is not in the script (it was replaced by the Drunk).
+    if (!def.characterId) continue;
+    const inScript    = scriptSet.has(def.characterId);
+    const hasDrunkSub = players.some((p) => p.role === 'drunk' && p.drunk_role === def.characterId);
+    if (!inScript && !hasDrunkSub) continue;
 
     // Skip steps where no alive player has this role.
-    // This handles both: dead players (skipWhenDead) and promoted players
-    // (e.g. Scarlet Woman whose role changed to 'imp' after succession).
+    // This handles both: dead players (skipWhenDead), promoted players
+    // (e.g. Scarlet Woman whose role changed to 'imp' after succession),
+    // and Drunk players whose drunk_role matches this step.
     if (def.skipWhenDead) {
-      const player = players.find((p) => p.role === def.characterId);
+      const player = players.find(
+        (p) => p.role === def.characterId ||
+               (p.role === 'drunk' && p.drunk_role === def.characterId),
+      );
       if (!player || !player.is_alive) continue;
     }
 

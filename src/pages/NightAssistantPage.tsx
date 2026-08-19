@@ -941,7 +941,7 @@ export function NightAssistantPage() {
                 ) : (
                   /* Not impaired: reveal real role */
                   <>
-                    {/* Spy / Recluse registration notes */}
+                    {/* Spy / Recluse / Drunk registration notes */}
                     {executedRoleId === 'spy' && (
                       <p className="step-info-panel-hint step-registration-note">
                         Spy was executed. You may show a Townsfolk or Outsider token instead if the Spy is registering as good.
@@ -950,6 +950,11 @@ export function NightAssistantPage() {
                     {executedRoleId === 'recluse' && (
                       <p className="step-info-panel-hint step-registration-note">
                         Recluse was executed. You may show a Minion or Demon token instead if the Recluse is registering as evil.
+                      </p>
+                    )}
+                    {executedRoleId === 'drunk' && (
+                      <p className="step-info-panel-hint step-registration-note">
+                        The Drunk was executed. Show The Drunk token — not the Townsfolk role they believed they were.
                       </p>
                     )}
                     <button
@@ -1191,7 +1196,7 @@ export function NightAssistantPage() {
             ) : (
               ravenkeeperTargetChar && (
                 <>
-                  {/* Spy / Recluse registration notes */}
+                  {/* Spy / Recluse / Drunk registration notes */}
                   {ravenkeeperTarget?.role === 'spy' && (
                     <p className="step-info-panel-hint step-registration-note">
                       Spy was chosen. You may show a Townsfolk or Outsider token instead if the Spy is registering as good.
@@ -1200,6 +1205,11 @@ export function NightAssistantPage() {
                   {ravenkeeperTarget?.role === 'recluse' && (
                     <p className="step-info-panel-hint step-registration-note">
                       Recluse was chosen. You may show a Minion or Demon token instead if the Recluse is registering as evil.
+                    </p>
+                  )}
+                  {ravenkeeperTarget?.role === 'drunk' && (
+                    <p className="step-info-panel-hint step-registration-note">
+                      This player is the Drunk. Show The Drunk token — not the Townsfolk role they believed they were.
                     </p>
                   )}
                   <button
