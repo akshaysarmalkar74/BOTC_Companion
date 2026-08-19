@@ -206,9 +206,16 @@ export function NightAssistantPage() {
       .map((id) => players.find((p) => p.id === id)?.role)
       .filter(Boolean) as string[];
 
-    // Spy can register as any role of the revealed team — don't auto-select
-    if (selectedRoles.includes('spy')) {
-      // Keep existing selection only if it's still in the correct team
+    // Spy registers as Townsfolk/Outsider — opens the full pool for those teams.
+    // Does NOT apply when roleRevealTeam === 'minion': the Spy IS already a Minion
+    // and should only be shown as 'spy', not as any arbitrary Minion.
+    const spyOpensPool = selectedRoles.includes('spy') && step.roleRevealTeam !== 'minion';
+
+    // Recluse registers as Minion for the Investigator — opens the full Minion pool.
+    const recluseOpensPool = selectedRoles.includes('recluse') && step.roleRevealTeam === 'minion';
+
+    if (spyOpensPool || recluseOpensPool) {
+      // Multiple valid tokens exist — don't auto-select, keep existing if still valid
       setLocalRoleId((prev) =>
         TROUBLE_BREWING.some((c) => c.id === prev && c.team === step.roleRevealTeam) ? prev : '',
       );
@@ -615,8 +622,8 @@ export function NightAssistantPage() {
   // When the character is impaired (drunk/poisoned), all TB roles are available so
   // the ST can show any misleading token.
   // When healthy, only roles of the correct team from the selected players are shown —
-  // EXCEPT when the Spy is one of the selected players: the Spy may register as any
-  // role of the revealed team, so the full team list is offered.
+  // Pool is expanded when special registration rules apply (Spy for Townsfolk/Outsider teams;
+  // Recluse for Minion team). See spyOpensPool / recluseOpensPool below.
   const isRoleRevealImpaired = !!currentStep.roleRevealTeam && (isCharPlayerDrunk || isCharPlayerPoisoned);
   const roleRevealPool = currentStep.roleRevealTeam && localTargets.length > 0
     ? isRoleRevealImpaired
@@ -625,11 +632,14 @@ export function NightAssistantPage() {
           const selectedRoles = localTargets
             .map((id) => players.find((p) => p.id === id)?.role)
             .filter(Boolean) as string[];
-          const hasSpy = selectedRoles.includes('spy');
+          // Spy can register as any Townsfolk/Outsider but is already a Minion —
+          // so pool expansion only applies when roleRevealTeam is NOT 'minion'.
+          const spyOpensPool = selectedRoles.includes('spy') && currentStep.roleRevealTeam !== 'minion';
+          // Recluse is an Outsider but can register as any Minion for Investigator.
+          const recluseOpensPool = selectedRoles.includes('recluse') && currentStep.roleRevealTeam === 'minion';
           return TROUBLE_BREWING.filter((c) => {
             if (c.team !== currentStep.roleRevealTeam) return false;
-            // Spy can register as any role of the target team
-            if (hasSpy) return true;
+            if (spyOpensPool || recluseOpensPool) return true;
             return selectedRoles.includes(c.id);
           });
         })()
