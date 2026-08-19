@@ -37,6 +37,8 @@ export function ScriptBuilderPage() {
   const [saving, setSaving]             = useState(false);
   const [loading, setLoading]           = useState(true);
   const [recentScripts, setRecentScripts] = useState<RecentScript[]>([]);
+  const [customMode, setCustomMode]     = useState(false);
+  const [customCounts, setCustomCounts] = useState({ townsfolk: 0, outsiders: 0, minions: 0, demons: 1 });
   const navigate = useNavigate();
 
   const session = loadSession();
@@ -97,7 +99,12 @@ export function ScriptBuilderPage() {
   // ── Derived state ──────────────────────────────────────────────────
 
   const hasBaron = selectedIds.includes('baron');
-  const setup = getSetup(playerCount, hasBaron);
+  const recommendedSetup = getSetup(playerCount, hasBaron);
+
+  // In custom mode, use the ST's custom counts; otherwise use the recommended setup
+  const effectiveSetup = customMode
+    ? { players: playerCount, ...customCounts }
+    : recommendedSetup;
 
   // How many of each team are currently selected
   const counts: Record<Team, number> = {
@@ -111,16 +118,43 @@ export function ScriptBuilderPage() {
     if (char) counts[char.team]++;
   }
 
+  // In custom mode, total must equal playerCount
+  const customTotal = customCounts.townsfolk + customCounts.outsiders + customCounts.minions + customCounts.demons;
+
   // Whether all quotas are exactly met
   const isValid =
-    setup !== null &&
-    counts.townsfolk === setup.townsfolk &&
-    counts.outsider === setup.outsiders &&
-    counts.minion === setup.minions &&
-    counts.demon === setup.demons;
+    effectiveSetup !== null &&
+    counts.townsfolk === effectiveSetup.townsfolk &&
+    counts.outsider === effectiveSetup.outsiders &&
+    counts.minion === effectiveSetup.minions &&
+    counts.demon === effectiveSetup.demons &&
+    (!customMode || customTotal === playerCount);
 
   const isPlayerCountValid =
     playerCount >= MIN_PLAYERS && playerCount <= MAX_PLAYERS;
+
+  // ── Custom mode helpers ─────────────────────────────────────────────
+
+  function handleToggleCustomMode() {
+    if (!customMode && recommendedSetup) {
+      // Pre-fill custom counts from the current recommended setup
+      setCustomCounts({
+        townsfolk: recommendedSetup.townsfolk,
+        outsiders: recommendedSetup.outsiders,
+        minions:   recommendedSetup.minions,
+        demons:    recommendedSetup.demons,
+      });
+      // Clear any characters that exceed the new custom quotas (none yet since we copy)
+    }
+    setCustomMode((v) => !v);
+  }
+
+  function adjustCustomCount(team: 'townsfolk' | 'outsiders' | 'minions', delta: number) {
+    setCustomCounts((prev) => {
+      const next = Math.max(0, prev[team] + delta);
+      return { ...prev, [team]: next };
+    });
+  }
 
   // ── Character interaction ──────────────────────────────────────────
 
@@ -129,23 +163,30 @@ export function ScriptBuilderPage() {
    * without exceeding its team's quota.
    */
   function canAdd(charId: string): boolean {
-    if (!setup) return false;
+    if (!effectiveSetup) return false;
     const char = TROUBLE_BREWING.find((c) => c.id === charId);
     if (!char) return false;
 
-    // After adding charId, does Baron status change?
+    if (customMode) {
+      // In custom mode, quotas come from customCounts directly
+      const limit =
+        char.team === 'townsfolk' ? customCounts.townsfolk
+        : char.team === 'outsider' ? customCounts.outsiders
+        : char.team === 'minion'   ? customCounts.minions
+        : customCounts.demons;
+      return counts[char.team] < limit;
+    }
+
+    // Recommended mode: re-derive setup after potential Baron change
     const newHasBaron = charId === 'baron' ? true : hasBaron;
     const newSetup = getSetup(playerCount, newHasBaron);
     if (!newSetup) return false;
 
     const limit =
-      char.team === 'townsfolk'
-        ? newSetup.townsfolk
-        : char.team === 'outsider'
-        ? newSetup.outsiders
-        : char.team === 'minion'
-        ? newSetup.minions
-        : newSetup.demons;
+      char.team === 'townsfolk' ? newSetup.townsfolk
+      : char.team === 'outsider' ? newSetup.outsiders
+      : char.team === 'minion'   ? newSetup.minions
+      : newSetup.demons;
 
     return counts[char.team] < limit;
   }
@@ -243,21 +284,81 @@ export function ScriptBuilderPage() {
               <div className="setup-player-count">
                 <span className="setup-label">Players</span>
                 <span className="setup-value">{playerCount}</span>
-                {hasBaron && (
+                {hasBaron && !customMode && (
                   <span className="setup-baron-note">Baron active (+2 Outsiders)</span>
                 )}
+                <div className="setup-mode-toggle">
+                  <button
+                    className={`setup-mode-btn${!customMode ? ' active' : ''}`}
+                    onClick={() => { if (customMode) handleToggleCustomMode(); }}
+                  >
+                    Recommended
+                  </button>
+                  <button
+                    className={`setup-mode-btn${customMode ? ' active' : ''}`}
+                    onClick={() => { if (!customMode) handleToggleCustomMode(); }}
+                  >
+                    Custom
+                  </button>
+                </div>
               </div>
+
+              {/* Custom mode: total indicator + spinners */}
+              {customMode && (
+                <div className="custom-setup-section">
+                  <div className="custom-setup-total">
+                    <span className="setup-label">Total allocated</span>
+                    <span className={`custom-total-value${customTotal === playerCount ? ' match' : customTotal > playerCount ? ' over' : ' under'}`}>
+                      {customTotal} / {playerCount}
+                    </span>
+                    {customTotal !== playerCount && (
+                      <span className="custom-total-hint">
+                        {customTotal > playerCount
+                          ? `${customTotal - playerCount} too many`
+                          : `${playerCount - customTotal} remaining`}
+                      </span>
+                    )}
+                  </div>
+                  <div className="custom-setup-spinners">
+                    {(['townsfolk', 'outsiders', 'minions'] as const).map((key) => {
+                      const teamKey = key === 'outsiders' ? 'outsider' : key === 'minions' ? 'minion' : 'townsfolk';
+                      return (
+                        <div key={key} className={`custom-spinner team-quota-${teamKey}`}>
+                          <span className="quota-team">{TEAM_LABELS[teamKey as Team]}</span>
+                          <div className="custom-spinner-controls">
+                            <button
+                              className="spinner-btn"
+                              onClick={() => adjustCustomCount(key, -1)}
+                              disabled={customCounts[key] === 0}
+                            >−</button>
+                            <span className="spinner-value">{customCounts[key]}</span>
+                            <button
+                              className="spinner-btn"
+                              onClick={() => adjustCustomCount(key, +1)}
+                            >+</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {/* Demons: always 1 in Trouble Brewing */}
+                    <div className="custom-spinner team-quota-demon">
+                      <span className="quota-team">Demons</span>
+                      <div className="custom-spinner-controls">
+                        <span className="spinner-value">{customCounts.demons}</span>
+                        <span className="spinner-locked">locked</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="setup-quotas">
                 {TEAM_ORDER.map((team) => {
                   const required =
-                    team === 'townsfolk'
-                      ? setup!.townsfolk
-                      : team === 'outsider'
-                      ? setup!.outsiders
-                      : team === 'minion'
-                      ? setup!.minions
-                      : setup!.demons;
+                    team === 'townsfolk' ? effectiveSetup!.townsfolk
+                    : team === 'outsider' ? effectiveSetup!.outsiders
+                    : team === 'minion'   ? effectiveSetup!.minions
+                    : effectiveSetup!.demons;
                   const current = counts[team];
                   const done = current === required;
                   const over = current > required;
@@ -289,26 +390,32 @@ export function ScriptBuilderPage() {
                 <p className="setup-valid">Script is valid — ready to save.</p>
               ) : (
                 <p className="setup-invalid">
-                  {TEAM_ORDER.map((team) => {
-                    const required =
-                      team === 'townsfolk'
-                        ? setup!.townsfolk
-                        : team === 'outsider'
-                        ? setup!.outsiders
-                        : team === 'minion'
-                        ? setup!.minions
-                        : setup!.demons;
-                    const current = counts[team];
-                    if (current === required) return null;
-                    const diff = required - current;
-                    return (
-                      <span key={team} className="invalid-item">
-                        {diff > 0
-                          ? `${diff} more ${TEAM_LABELS[team]} needed`
-                          : `${Math.abs(diff)} too many ${TEAM_LABELS[team]}`}
-                      </span>
-                    );
-                  })}
+                  {customMode && customTotal !== playerCount ? (
+                    <span className="invalid-item">
+                      Total must equal {playerCount} players
+                      {customTotal > playerCount
+                        ? ` (${customTotal - playerCount} too many)`
+                        : ` (${playerCount - customTotal} remaining)`}
+                    </span>
+                  ) : (
+                    TEAM_ORDER.map((team) => {
+                      const required =
+                        team === 'townsfolk' ? effectiveSetup!.townsfolk
+                        : team === 'outsider' ? effectiveSetup!.outsiders
+                        : team === 'minion'   ? effectiveSetup!.minions
+                        : effectiveSetup!.demons;
+                      const current = counts[team];
+                      if (current === required) return null;
+                      const diff = required - current;
+                      return (
+                        <span key={team} className="invalid-item">
+                          {diff > 0
+                            ? `${diff} more ${TEAM_LABELS[team]} needed`
+                            : `${Math.abs(diff)} too many ${TEAM_LABELS[team]}`}
+                        </span>
+                      );
+                    })
+                  )}
                 </p>
               )}
             </>

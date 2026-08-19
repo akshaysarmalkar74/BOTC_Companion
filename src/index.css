@@ -1125,6 +1125,123 @@ button, select, input, textarea {
 
 .invalid-item { color: var(--danger); }
 
+/* ── Setup mode toggle ── */
+
+.setup-mode-toggle {
+  display: flex;
+  margin-left: auto;
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.setup-mode-btn {
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.setup-mode-btn.active {
+  background: rgba(184, 134, 59, 0.18);
+  color: var(--accent);
+}
+
+/* ── Custom setup section ── */
+
+.custom-setup-section {
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--surface-high);
+  border: 1px solid rgba(184, 134, 59, 0.20);
+  border-radius: var(--radius-sm);
+}
+
+.custom-setup-total {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.custom-total-value {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.custom-total-value.match { color: var(--online); }
+.custom-total-value.over  { color: var(--danger); }
+.custom-total-value.under { color: var(--accent); }
+
+.custom-total-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.custom-setup-spinners {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+@media (min-width: 480px) {
+  .custom-setup-spinners { grid-template-columns: repeat(4, 1fr); }
+}
+
+.custom-spinner {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-mid);
+  background: var(--ink-2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.custom-spinner-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.spinner-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-mid);
+  background: var(--surface-high);
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.spinner-btn:hover:not(:disabled) { background: var(--border-mid); }
+.spinner-btn:disabled { opacity: 0.35; cursor: default; }
+
+.spinner-value {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 20px;
+  text-align: center;
+}
+
+.spinner-locked {
+  font-size: 0.6875rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 /* ══════════════════════════════════════════════════════════
    Role Assignment page
    ══════════════════════════════════════════════════════════ */
