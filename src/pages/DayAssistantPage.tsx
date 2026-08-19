@@ -249,22 +249,22 @@ export function DayAssistantPage() {
       addBanner(virginResult);
       void recordEvent({
         roomId: room.id, phase: room.phase,
-        type: 'player_death',
+        // virgin-trigger involves a death; no-trigger is just advisory
+        type: virginResult.isStateChange ? 'player_death' : 'resolution_advisory',
         description: virginResult.message,
         playerIds: virginResult.affectedPlayerIds,
         metadata: { abilityType: virginResult.type },
       });
-      // Mark once-per-game: place token so subsequent nominations don't re-trigger
-      if (virginResult.type === 'virgin-trigger') {
-        const virgin = players.find((p) => p.id === nomineeId);
-        if (virgin) {
-          const { data: newToken } = await supabase
-            .from('reminder_tokens')
-            .insert({ player_id: virgin.id, room_id: room.id, token_key: 'virgin-ability-used' })
-            .select('id, player_id, room_id, token_key, created_at')
-            .single();
-          if (newToken) setReminderTokens((prev) => [...prev, newToken as import('../types').ReminderToken]);
-        }
+      // Always mark ability as spent on first nomination — even if it didn't fire.
+      // (The 1st-time trigger has been consumed regardless of outcome.)
+      const virgin = players.find((p) => p.id === nomineeId);
+      if (virgin) {
+        const { data: newToken } = await supabase
+          .from('reminder_tokens')
+          .insert({ player_id: virgin.id, room_id: room.id, token_key: 'virgin-ability-used' })
+          .select('id, player_id, room_id, token_key, created_at')
+          .single();
+        if (newToken) setReminderTokens((prev) => [...prev, newToken as import('../types').ReminderToken]);
       }
     }
 

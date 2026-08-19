@@ -103,6 +103,17 @@ export function checkVirgin(
     };
   }
 
+  // Spy can register as Townsfolk at the ST's discretion
+  if (nominator.role === 'spy') {
+    return {
+      type: 'virgin-no-trigger',
+      message: `Spy (${nominator.display_name}) nominated the Virgin. Spy is Minion by default — ability does not trigger. If you want Spy to register as Townsfolk tonight, execute ${nominator.display_name} manually.`,
+      affectedPlayerIds: [virgin.id, nominatorId],
+      isStateChange: false,
+      requiresConfirmation: true,
+    };
+  }
+
   return {
     type: 'virgin-no-trigger',
     message: `${nominator.display_name} nominated the Virgin but is not Townsfolk — Virgin ability does not trigger.`,
