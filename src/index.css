@@ -2361,6 +2361,7 @@ button, select, input, textarea {
 .step-player-btn.is-selected { border-color: var(--accent); background: var(--accent-dim); }
 .step-player-btn.is-dead     { opacity: 0.4; }
 .step-player-btn.is-dimmed   { opacity: 0.3; pointer-events: none; }
+.step-player-btn:disabled    { opacity: 0.2; cursor: not-allowed; pointer-events: none; }
 
 /* Info-only card — same look but not interactive */
 .step-player-btn--info {

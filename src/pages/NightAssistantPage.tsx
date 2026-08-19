@@ -573,6 +573,10 @@ export function NightAssistantPage() {
   // ── Librarian ─────────────────────────────────────────────────────────
   const isLibrarianStep = currentStep.characterId === 'librarian';
 
+  // ── Monk ─────────────────────────────────────────────────────────────
+  const isMonkStep     = currentStep.characterId === 'monk';
+  const monkImpaired   = isMonkStep && (isCharPlayerDrunk || isCharPlayerPoisoned);
+
   // ── Poisoner ─────────────────────────────────────────────────────────
   const isPoisonerStep = currentStep.characterId === 'poisoner';
   const poisonerTarget = isPoisonerStep && localTargets.length === 1
@@ -1021,6 +1025,18 @@ export function NightAssistantPage() {
             </div>
           )}
 
+          {/* Monk: impairment note */}
+          {isMonkStep && monkImpaired && (
+            <div className="step-info-panel step-info-panel--muted">
+              <p className="step-info-panel-label">
+                Monk is {isCharPlayerDrunk ? 'drunk' : 'poisoned'} — protection will fail tonight
+              </p>
+              <p className="step-info-panel-hint">
+                Wake the Monk as normal and let them point to a player, but their protection has no effect. If the Demon targets that player, they die.
+              </p>
+            </div>
+          )}
+
           {/* Poisoner: confirm which player will be poisoned */}
           {isPoisonerStep && poisonerTarget && (
             <div className="step-info-panel step-info-panel--minion">
@@ -1085,14 +1101,19 @@ export function NightAssistantPage() {
                   const sel = localTargets.includes(p.id);
                   const full =
                     !sel && localTargets.length >= currentStep.targetCount;
+                  // Block self when selfAllowed !== true; block dead when deadAllowed !== true
+                  const selfBlocked = currentStep.selfAllowed !== true && charPlayer?.id === p.id;
+                  const deadBlocked = currentStep.deadAllowed !== true && !p.is_alive;
+                  const blocked = selfBlocked || deadBlocked;
                   return (
                     <button
                       key={p.id}
+                      disabled={blocked}
                       className={[
                         'step-player-btn',
-                        sel   && 'is-selected',
+                        sel     && 'is-selected',
                         !p.is_alive && 'is-dead',
-                        full  && 'is-dimmed',
+                        full    && 'is-dimmed',
                       ]
                         .filter(Boolean)
                         .join(' ')}
