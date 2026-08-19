@@ -239,7 +239,7 @@ export const NIGHT_STEPS: NightStepDef[] = [
     skipWhenDead: true,
     conditional: false,
     selfAllowed: false,  // Butler cannot choose themselves as master
-    deadAllowed: false,
+    deadAllowed: true,   // Butler may choose a dead player as master
   },
   {
     key: 'spy',

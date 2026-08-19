@@ -725,16 +725,22 @@ export function DayAssistantPage() {
           if (!butlerPlayer) return null;
           const masterToken = reminderTokens.find((t) => t.token_key === 'butler-master');
           const masterPlayer = masterToken ? players.find((p) => p.id === masterToken.player_id) : null;
+          const butlerPoisoned = reminderTokens.some(
+            (t) => t.token_key === 'poisoner-poisoned' && t.player_id === butlerPlayer.id,
+          );
           return (
             <section className="day-section">
               <h3 className="day-section-title">Butler Restriction</h3>
-              <div className="step-info-panel step-info-panel--muted">
+              <div className={`step-info-panel step-info-panel--${butlerPoisoned ? 'muted' : 'muted'}`}>
                 <p className="step-info-panel-label">
                   {butlerPlayer.display_name} (Butler)
-                  {masterPlayer ? <> · Master: <strong>{masterPlayer.display_name}</strong></> : ' · Master not set'}
+                  {masterPlayer ? <> · Master: <strong>{masterPlayer.display_name}{!masterPlayer.is_alive ? ' †' : ''}</strong></> : ' · Master not set'}
+                  {butlerPoisoned && <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}> · poisoned</span>}
                 </p>
                 <p className="step-info-panel-hint">
-                  Butler may only vote on a nomination if their master votes first.
+                  {butlerPoisoned
+                    ? 'Butler is poisoned — voting restriction is void today. They may vote freely.'
+                    : 'Butler may only vote on a nomination if their master votes first.'}
                 </p>
               </div>
             </section>

@@ -577,6 +577,10 @@ export function NightAssistantPage() {
   const isMonkStep     = currentStep.characterId === 'monk';
   const monkImpaired   = isMonkStep && (isCharPlayerDrunk || isCharPlayerPoisoned);
 
+  // ── Butler ───────────────────────────────────────────────────────────
+  const isButlerStep   = currentStep.characterId === 'butler';
+  const butlerImpaired = isButlerStep && (isCharPlayerDrunk || isCharPlayerPoisoned);
+
   // ── Poisoner ─────────────────────────────────────────────────────────
   const isPoisonerStep = currentStep.characterId === 'poisoner';
   const poisonerTarget = isPoisonerStep && localTargets.length === 1
@@ -1033,6 +1037,18 @@ export function NightAssistantPage() {
               </p>
               <p className="step-info-panel-hint">
                 Wake the Monk as normal and let them point to a player, but their protection has no effect. If the Demon targets that player, they die.
+              </p>
+            </div>
+          )}
+
+          {/* Butler: impairment note */}
+          {isButlerStep && butlerImpaired && (
+            <div className="step-info-panel step-info-panel--muted">
+              <p className="step-info-panel-label">
+                Butler is {isCharPlayerDrunk ? 'drunk' : 'poisoned'} — voting restriction will be void tomorrow
+              </p>
+              <p className="step-info-panel-hint">
+                Wake the Butler as normal and let them point to a master, but the voting restriction has no effect. Tomorrow they may vote freely.
               </p>
             </div>
           )}
