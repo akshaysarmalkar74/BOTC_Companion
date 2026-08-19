@@ -255,6 +255,27 @@ export function DayAssistantPage() {
         playerIds: virginResult.affectedPlayerIds,
         metadata: { abilityType: virginResult.type },
       });
+      // Case 4: Virgin trigger executes the nominator — if that nominator is the Saint,
+      // the Saint's ability fires too (Evil wins if Saint is healthy).
+      if (virginResult.type === 'virgin-trigger') {
+        const gsForSaint = buildGameState(players, reminderTokens);
+        const saintResult = checkSaint(gsForSaint, nominatorId);
+        if (saintResult) {
+          addBanner(saintResult);
+          void recordEvent({
+            roomId: room.id, phase: room.phase,
+            type: saintResult.isStateChange ? 'game_end' : 'resolution_advisory',
+            description: saintResult.message,
+            playerIds: saintResult.affectedPlayerIds,
+            metadata: { abilityType: saintResult.type },
+          });
+          if (saintResult.isStateChange) {
+            const saintWin = detectSaintExecution(players, nominatorId);
+            if (saintWin) setWinAlert(saintWin);
+          }
+        }
+      }
+
       // Always mark ability as spent on first nomination — even if it didn't fire.
       // (The 1st-time trigger has been consumed regardless of outcome.)
       const virgin = players.find((p) => p.id === nomineeId);
@@ -300,9 +321,10 @@ export function DayAssistantPage() {
     setPlayers(updatedPlayers);
     void recordExecution(room.id, room.phase, executeId, players);
 
-    // Check Saint ability (dayEngine)
-    const gs = buildGameState(updatedPlayers, reminderTokens);
-    const saintResult = checkSaint(gs, executeId);
+    // Check Saint ability BEFORE marking player as dead (use original 'players').
+    // Using updatedPlayers would cause getAlivePlayerByRole to miss the Saint.
+    const gsPre = buildGameState(players, reminderTokens);
+    const saintResult = checkSaint(gsPre, executeId);
     if (saintResult) {
       addBanner(saintResult);
       void recordEvent({
@@ -314,8 +336,11 @@ export function DayAssistantPage() {
       });
     }
 
-    // Saint execution → immediate Evil win (overrides SW promotion)
-    const saintWin = detectSaintExecution(players, executeId);
+    // Saint execution → immediate Evil win, but ONLY if Saint is not impaired.
+    // If saintResult.isStateChange === false, the ability was voided; skip the win.
+    const saintWin = (!saintResult || saintResult.isStateChange)
+      ? detectSaintExecution(players, executeId)
+      : null;
     if (saintWin) {
       setWinAlert(saintWin);
     } else {
